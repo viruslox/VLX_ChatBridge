@@ -11,6 +11,9 @@ import (
 
 	"VLX_ChatBridge/internal/core/config"
 	"VLX_ChatBridge/internal/core/module"
+	"VLX_ChatBridge/internal/modules/chatflow/twitch"
+	"VLX_ChatBridge/internal/modules/chatflow/websocket"
+	"VLX_ChatBridge/internal/modules/chatflow/youtube"
 )
 
 // Module represents the ChatFlow component.
@@ -18,6 +21,9 @@ type Module struct {
 	config     *config.Config
 	controller module.Controller
 	server     *http.Server
+	wsManager  *websocket.WebSocketManager
+	twitch     *twitch.TwitchClient
+	youtube    *youtube.YouTubeClient
 }
 
 // NewModule creates a new instance of the ChatFlow module.
@@ -54,7 +60,22 @@ func (m *Module) Start() error {
 		}
 	}()
 
-	// TODO: Initialize WebSockets, Twitch, YouTube
+	// Initialize WebSockets, Twitch, YouTube
+	m.wsManager = websocket.NewManager()
+	if err := m.wsManager.Start(); err != nil {
+		log.Printf("[ChatFlow] WebSocket manager error: %v", err)
+	}
+
+	m.twitch = twitch.NewClient()
+	if err := m.twitch.Connect(); err != nil {
+		log.Printf("[ChatFlow] Twitch client error: %v", err)
+	}
+
+	m.youtube = youtube.NewClient()
+	if err := m.youtube.Connect(); err != nil {
+		log.Printf("[ChatFlow] YouTube client error: %v", err)
+	}
+
 	log.Println("[ChatFlow] Started successfully.")
 	return nil
 }
@@ -113,7 +134,18 @@ func (m *Module) Stop() error {
 		}
 	}
 
-	// TODO: Cleanup resources, shutdown server
+	if m.twitch != nil {
+		m.twitch.Disconnect()
+	}
+
+	if m.youtube != nil {
+		m.youtube.Disconnect()
+	}
+
+	if m.wsManager != nil {
+		m.wsManager.Stop()
+	}
+
 	log.Println("[ChatFlow] Stopped successfully.")
 	return nil
 }
