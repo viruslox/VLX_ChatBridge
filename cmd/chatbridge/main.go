@@ -8,12 +8,18 @@ import (
 	"syscall"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/core/install"
 	"VLX_ChatBridge/internal/core/module"
 	"VLX_ChatBridge/internal/modules/audiobridge"
 	"VLX_ChatBridge/internal/modules/chatflow"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "install" {
+		install.Run()
+		return
+	}
+
 	configPath := flag.String("config", "config/chatbridge.settings.template", "Path to configuration file")
 	flag.Parse()
 
