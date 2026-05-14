@@ -117,9 +117,9 @@ This is the most critical technical change.
 5.  **Phase 5: Refine Module Toggling**
     - [x] Implement logic to start/stop the Discord Bot and ChatFlow HTTP server without exiting the main process.
 6.  **Phase 6: Testing & Cleanup**
-    *   Write integration tests verifying audio flows from ChatFlow to the Mixer.
+    - [x] Write integration tests verifying audio flows from ChatFlow to the Mixer.
     *   Test SRT egress with mixed audio.
-    *   Test runtime toggling.
+    - [x] Test runtime toggling.
 
 ## 8. Dependencies to Add/Remove
 
