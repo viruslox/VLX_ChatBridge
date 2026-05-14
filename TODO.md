@@ -75,7 +75,7 @@ audio_source: ... # Only SRT sources remain, HTML sources are removed.
 *   [x] **Core Controller:** The `main.go` or a `ModuleManager` will read the configuration.
     *   If `chatflow_enabled`, initialize and `Start()` the ChatFlow components.
     *   If `audiobridge_enabled`, initialize and `Start()` the Discord bot and Mixer.
-*   [ ] **Hot-swapping:** Implement an API endpoint (in ChatFlow) or Discord command (in AudioBridge) to trigger `Stop()` or `Start()` on the other module dynamically, updating the running state.
+*   [x] **Hot-swapping:** Implement an API endpoint (in ChatFlow) or Discord command (in AudioBridge) to trigger `Stop()` or `Start()` on the other module dynamically, updating the running state.
 
 ## 5. Removing Headless Browser (Direct Audio Integration)
 
@@ -105,17 +105,17 @@ This is the most critical technical change.
     - [x] Setup the `cmd/chatbridge/main.go` skeleton.
     - [x] Create Module Interface and Manager.
 2.  **Phase 2: Porting ChatFlow**
-    *   Move ChatFlow code into `internal/modules/chatflow`.
-    *   Ensure the HTTP server, WebSockets, Twitch, and YouTube modules work independently.
+    - [x] Move ChatFlow code into `internal/modules/chatflow`.
+    - [ ] Ensure the HTTP server, WebSockets, Twitch, and YouTube modules work independently. (HTTP Server base done)
 3.  **Phase 3: Porting AudioBridge & Refactoring**
-    *   Move AudioBridge code into `internal/modules/audiobridge`.
-    *   Strip out the `overlay` package (browser manager, PortAudio capture).
-    *   Refactor `Mixer` to accept a direct internal channel for PCM data.
+    - [x] Move AudioBridge code into `internal/modules/audiobridge`.
+    - [ ] Strip out the `overlay` package (browser manager, PortAudio capture).
+    - [ ] Refactor `Mixer` to accept a direct internal channel for PCM data.
 4.  **Phase 4: The Bridge**
     *   Implement an audio decoding utility in ChatFlow (to decode `.mp3` files).
     *   Connect the ChatFlow event handlers (when an alert fires) to send decoded PCM chunks to the AudioBridge Mixer channel.
 5.  **Phase 5: Refine Module Toggling**
-    *   Implement logic to start/stop the Discord Bot and ChatFlow HTTP server without exiting the main process.
+    - [x] Implement logic to start/stop the Discord Bot and ChatFlow HTTP server without exiting the main process.
 6.  **Phase 6: Testing & Cleanup**
     *   Write integration tests verifying audio flows from ChatFlow to the Mixer.
     *   Test SRT egress with mixed audio.

@@ -4,17 +4,20 @@ import (
 	"log"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/core/module"
 )
 
 // Module represents the AudioBridge component.
 type Module struct {
-	config *config.Config
+	config     *config.Config
+	controller module.Controller
 }
 
 // NewModule creates a new instance of the AudioBridge module.
-func NewModule(cfg *config.Config) *Module {
+func NewModule(cfg *config.Config, ctrl module.Controller) *Module {
 	return &Module{
-		config: cfg,
+		config:     cfg,
+		controller: ctrl,
 	}
 }
 
