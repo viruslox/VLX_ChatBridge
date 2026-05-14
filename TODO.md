@@ -99,10 +99,10 @@ This is the most critical technical change.
 ## 7. Execution Steps
 
 1.  **Phase 1: Project Setup & Core Merge**
-    *   Initialize `VLX_ChatBridge` repo.
-    *   Merge `go.mod` dependencies.
-    *   Create unified `config/config.go` handling the combined YAML.
-    *   Setup the `cmd/chatbridge/main.go` skeleton.
+    - [x] Initialize `VLX_ChatBridge` repo.
+    - [x] Merge `go.mod` dependencies.
+    - [x] Create unified `config/config.go` handling the combined YAML.
+    - [x] Setup the `cmd/chatbridge/main.go` skeleton.
 2.  **Phase 2: Porting ChatFlow**
     *   Move ChatFlow code into `internal/modules/chatflow`.
     *   Ensure the HTTP server, WebSockets, Twitch, and YouTube modules work independently.
