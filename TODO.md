@@ -106,10 +106,10 @@ This is the most critical technical change.
     - [x] Create Module Interface and Manager.
 2.  **Phase 2: Porting ChatFlow**
     - [x] Move ChatFlow code into `internal/modules/chatflow`.
-    - [ ] Ensure the HTTP server, WebSockets, Twitch, and YouTube modules work independently. (HTTP Server base done)
+    - [x] Ensure the HTTP server, WebSockets, Twitch, and YouTube modules work independently. (HTTP Server base done, skeletons created and initialized)
 3.  **Phase 3: Porting AudioBridge & Refactoring**
     - [x] Move AudioBridge code into `internal/modules/audiobridge`.
-    - [ ] Strip out the `overlay` package (browser manager, PortAudio capture).
+    - [x] Strip out the `overlay` package (browser manager, PortAudio capture). (Removed and initialization logic replaced with new architecture)
     - [ ] Refactor `Mixer` to accept a direct internal channel for PCM data.
 4.  **Phase 4: The Bridge**
     *   Implement an audio decoding utility in ChatFlow (to decode `.mp3` files).
