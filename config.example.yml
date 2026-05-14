@@ -1,0 +1,41 @@
+modules:
+  chatflow_enabled: true
+  audiobridge_enabled: true
+
+server:
+  base_url: "https://your.ngrok.io"
+  port: "8000"
+  test_port: "8001"
+
+database:
+  host: "localhost"
+  user: "postgres"
+  password: "${DB_PASSWORD}"
+  dbname: "chatbridge_db"
+
+twitch:
+  client_id: ""
+  client_secret: ""
+
+youtube:
+  api_key: ""
+  channel_id: ""
+
+overlay:
+  enable: true
+
+discord:
+  token: "YOUR_DISCORD_BOT_TOKEN"
+  prefix: "vlx."
+  admins: ["111111111111111111"]
+
+streaming:
+  destination_url: "srt://127.0.0.1:8890?streamid=publish:vlx_audio&mode=caller&pkt_size=1316"
+  bitrate: "128k"
+
+audio_source:
+  source1:
+    enable: yes
+    type: SRT
+    volume: 80
+    url: "srt://127.0.0.1:2020?"
