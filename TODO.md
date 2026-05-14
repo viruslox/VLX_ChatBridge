@@ -71,11 +71,11 @@ audio_source: ... # Only SRT sources remain, HTML sources are removed.
 
 ## 4. Module Toggling Implementation
 
-*   **Interface Definition:** Create a standard interface for modules (e.g., `Start() error`, `Stop() error`).
-*   **Core Controller:** The `main.go` or a `ModuleManager` will read the configuration.
+*   [x] **Interface Definition:** Create a standard interface for modules (e.g., `Start() error`, `Stop() error`).
+*   [x] **Core Controller:** The `main.go` or a `ModuleManager` will read the configuration.
     *   If `chatflow_enabled`, initialize and `Start()` the ChatFlow components.
     *   If `audiobridge_enabled`, initialize and `Start()` the Discord bot and Mixer.
-*   **Hot-swapping:** Implement an API endpoint (in ChatFlow) or Discord command (in AudioBridge) to trigger `Stop()` or `Start()` on the other module dynamically, updating the running state.
+*   [ ] **Hot-swapping:** Implement an API endpoint (in ChatFlow) or Discord command (in AudioBridge) to trigger `Stop()` or `Start()` on the other module dynamically, updating the running state.
 
 ## 5. Removing Headless Browser (Direct Audio Integration)
 
@@ -103,6 +103,7 @@ This is the most critical technical change.
     - [x] Merge `go.mod` dependencies.
     - [x] Create unified `config/config.go` handling the combined YAML.
     - [x] Setup the `cmd/chatbridge/main.go` skeleton.
+    - [x] Create Module Interface and Manager.
 2.  **Phase 2: Porting ChatFlow**
     *   Move ChatFlow code into `internal/modules/chatflow`.
     *   Ensure the HTTP server, WebSockets, Twitch, and YouTube modules work independently.
