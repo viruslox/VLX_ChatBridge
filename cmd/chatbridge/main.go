@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "config.example.yml", "Path to configuration file")
+	configPath := flag.String("config", "config/chatbridge.settings.template", "Path to configuration file")
 	flag.Parse()
 
 	log.Printf("Starting VLX_ChatBridge...")
