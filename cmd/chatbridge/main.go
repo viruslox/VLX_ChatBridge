@@ -30,7 +30,7 @@ func main() {
 
 	if cfg.Modules.ChatFlowEnabled {
 		log.Println("ChatFlow module is ENABLED. Registering ChatFlow module...")
-		cfModule := chatflow.NewModule(cfg)
+		cfModule := chatflow.NewModule(cfg, manager)
 		manager.Register(cfModule)
 	} else {
 		log.Println("ChatFlow module is DISABLED.")
@@ -38,7 +38,7 @@ func main() {
 
 	if cfg.Modules.AudioBridgeEnabled {
 		log.Println("AudioBridge module is ENABLED. Registering AudioBridge module...")
-		abModule := audiobridge.NewModule(cfg)
+		abModule := audiobridge.NewModule(cfg, manager)
 		manager.Register(abModule)
 	} else {
 		log.Println("AudioBridge module is DISABLED.")

@@ -1,5 +1,11 @@
 package module
 
+// Controller provides an interface to manage modules (e.g., hot-swapping).
+type Controller interface {
+	StartModule(name string) error
+	StopModule(name string) error
+}
+
 // Module defines the interface that all ChatBridge modules must implement.
 // This allows for a unified way to start, stop, and manage different parts of the application.
 type Module interface {
