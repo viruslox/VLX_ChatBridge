@@ -113,7 +113,7 @@ This is the most critical technical change.
     - [x] Refactor `Mixer` to accept a direct internal channel for PCM data.
 4.  **Phase 4: The Bridge**
     - [x] Implement an audio decoding utility in ChatFlow (to decode `.mp3` files).
-    - [ ] Connect the ChatFlow event handlers (when an alert fires) to send decoded PCM chunks to the AudioBridge Mixer channel.
+    - [x] Connect the ChatFlow event handlers (when an alert fires) to send decoded PCM chunks to the AudioBridge Mixer channel.
 5.  **Phase 5: Refine Module Toggling**
     - [x] Implement logic to start/stop the Discord Bot and ChatFlow HTTP server without exiting the main process.
 6.  **Phase 6: Testing & Cleanup**

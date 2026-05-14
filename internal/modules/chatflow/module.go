@@ -11,6 +11,7 @@ import (
 
 	"VLX_ChatBridge/internal/core/config"
 	"VLX_ChatBridge/internal/core/module"
+	"VLX_ChatBridge/internal/modules/chatflow/audio"
 	"VLX_ChatBridge/internal/modules/chatflow/twitch"
 	"VLX_ChatBridge/internal/modules/chatflow/websocket"
 	"VLX_ChatBridge/internal/modules/chatflow/youtube"
@@ -42,6 +43,9 @@ func (m *Module) Start() error {
 
 	// API endpoint to toggle modules
 	mux.HandleFunc("/api/modules/", m.handleModuleToggle)
+
+	// API endpoint to simulate an alert
+	mux.HandleFunc("/api/alert", m.handleAlert)
 
 	port := m.config.Server.Port
 	if port == "" {
@@ -117,8 +121,30 @@ func (m *Module) handleModuleToggle(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "success",
+		"status":  "success",
 		"message": fmt.Sprintf("Initiated %s for module %s", action, moduleName),
+	})
+}
+
+// handleAlert handles POST requests to trigger an alert.
+// Example: POST /api/alert
+func (m *Module) handleAlert(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	go func() {
+		err := audio.DecodeMP3ToPCM("static/chat/alert.mp3")
+		if err != nil {
+			log.Printf("[ChatFlow] Error decoding alert: %v", err)
+		}
+	}()
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": "Alert triggered",
 	})
 }
 
