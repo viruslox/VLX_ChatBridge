@@ -118,7 +118,7 @@ This is the most critical technical change.
     - [x] Implement logic to start/stop the Discord Bot and ChatFlow HTTP server without exiting the main process.
 6.  **Phase 6: Testing & Cleanup**
     - [x] Write integration tests verifying audio flows from ChatFlow to the Mixer.
-    *   Test SRT egress with mixed audio.
+    - [x] Test SRT egress with mixed audio.
     - [x] Test runtime toggling.
 
 ## 8. Dependencies to Add/Remove
