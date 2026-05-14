@@ -1,3 +1,7 @@
+# VLX ChatBridge User Profile
+chatbridge_USER: "chatbridge"
+chatbridge_DIR: "/opt/VLX_ChatBridge"
+
 modules:
   chatflow_enabled: true
   audiobridge_enabled: true
