@@ -110,10 +110,10 @@ This is the most critical technical change.
 3.  **Phase 3: Porting AudioBridge & Refactoring**
     - [x] Move AudioBridge code into `internal/modules/audiobridge`.
     - [x] Strip out the `overlay` package (browser manager, PortAudio capture). (Removed and initialization logic replaced with new architecture)
-    - [ ] Refactor `Mixer` to accept a direct internal channel for PCM data.
+    - [x] Refactor `Mixer` to accept a direct internal channel for PCM data.
 4.  **Phase 4: The Bridge**
-    *   Implement an audio decoding utility in ChatFlow (to decode `.mp3` files).
-    *   Connect the ChatFlow event handlers (when an alert fires) to send decoded PCM chunks to the AudioBridge Mixer channel.
+    - [x] Implement an audio decoding utility in ChatFlow (to decode `.mp3` files).
+    - [ ] Connect the ChatFlow event handlers (when an alert fires) to send decoded PCM chunks to the AudioBridge Mixer channel.
 5.  **Phase 5: Refine Module Toggling**
     - [x] Implement logic to start/stop the Discord Bot and ChatFlow HTTP server without exiting the main process.
 6.  **Phase 6: Testing & Cleanup**
