@@ -23,6 +23,7 @@ jobs:
           git clone https://github.com/disgoorg/godave.git
           cd godave/scripts
           export CC=/usr/bin/clang CXX=/usr/bin/clang
+          export SHELL=/bin/bash
           ./libdave_install.sh v1.1.0
 
       - name: Checkout code
