@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:testing
+
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y git golang-go clang pkg-config libopus-dev cmake build-essential
+
+      - name: Install libdave
+        run: |
+          mkdir -p /root/Projects/
+          cd /root/Projects/
+          git clone https://github.com/disgoorg/godave.git
+          cd godave/scripts
+          export CC=/usr/bin/clang CXX=/usr/bin/clang
+          ./libdave_install.sh v1.1.0
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Mark checkout directory as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Run build script
+        run: |
+          export PKG_CONFIG_PATH="/root/.local/lib/pkgconfig:$PKG_CONFIG_PATH"
+          ./build.sh
+
+      - name: Run tests
+        run: |
+          export PKG_CONFIG_PATH="/root/.local/lib/pkgconfig:$PKG_CONFIG_PATH"
+          go test ./...
