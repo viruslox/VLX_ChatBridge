@@ -29,7 +29,7 @@ func getNonPrivilegedUsers() []SysUser {
 		parts := strings.Split(line, ":")
 		if len(parts) >= 7 {
 			uid, err := strconv.Atoi(parts[2])
-			if err == nil && uid > 1000 {
+			if err == nil && uid >= 1000 {
 				shell := parts[6]
 				if shell == "/bin/bash" || shell == "/bin/zsh" {
 					users = append(users, SysUser{
