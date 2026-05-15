@@ -14,7 +14,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update
-          apt-get install -y git golang-go clang pkg-config libopus-dev cmake build-essential
+          apt-get install -y git golang-go clang pkg-config libopus-dev cmake build-essential curl
 
       - name: Install libdave
         run: |
