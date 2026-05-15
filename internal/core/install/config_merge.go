@@ -90,23 +90,35 @@ func mergeNodes(dst, src *yaml.Node) {
 	}
 
 	for i := 0; i < len(src.Content); i += 2 {
-		srcKey := src.Content[i].Value
+		srcKeyNode := src.Content[i]
+		srcKey := srcKeyNode.Value
 		srcVal := src.Content[i+1]
 
 		found := false
 		for j := 0; j < len(dst.Content); j += 2 {
-			dstKey := dst.Content[j].Value
+			dstKeyNode := dst.Content[j]
+			dstKey := dstKeyNode.Value
 			if dstKey == srcKey {
 				found = true
 				if dst.Content[j+1].Kind == yaml.MappingNode && srcVal.Kind == yaml.MappingNode {
 					mergeNodes(dst.Content[j+1], srcVal)
+				}
+
+				if srcKeyNode.HeadComment != "" {
+					dstKeyNode.HeadComment = srcKeyNode.HeadComment
+				}
+				if srcKeyNode.LineComment != "" {
+					dstKeyNode.LineComment = srcKeyNode.LineComment
+				}
+				if srcKeyNode.FootComment != "" {
+					dstKeyNode.FootComment = srcKeyNode.FootComment
 				}
 				break
 			}
 		}
 
 		if !found {
-			dst.Content = append(dst.Content, src.Content[i], srcVal)
+			dst.Content = append(dst.Content, srcKeyNode, srcVal)
 		}
 	}
 }
