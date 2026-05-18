@@ -23,6 +23,10 @@ func main() {
 	configPath := flag.String("config", "config/chatbridge.settings.template", "Path to configuration file")
 	flag.Parse()
 
+	if flag.NArg() > 0 {
+		*configPath = flag.Arg(0)
+	}
+
 	log.Printf("Starting VLX_ChatBridge...")
 	log.Printf("Loading configuration from %s", *configPath)
 
