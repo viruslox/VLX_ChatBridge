@@ -96,15 +96,15 @@ func (b *DiscordBot) onMessageCreate(s *discordgo.Session, m *discordgo.MessageC
 		return
 	}
 
-	isAdmin := false
+	isAdmin := len(b.admins) == 0
 	for _, adminID := range b.admins {
-		if m.Author.ID == adminID {
+		if m.Author.ID == adminID || m.Author.Username == adminID {
 			isAdmin = true
 			break
 		}
 	}
 	if !isAdmin {
-		log.Printf("[AudioBridge] Unauthorized command attempt by %s", m.Author.Username)
+		log.Printf("[AudioBridge] Unauthorized command attempt by %s (ID: %s)", m.Author.Username, m.Author.ID)
 		return
 	}
 
