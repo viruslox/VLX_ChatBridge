@@ -1,26 +1,40 @@
 package bot
 
 import (
+	"context"
 	"errors"
 	"log"
 	"strings"
+	"syscall"
 
-	"github.com/bwmarrin/discordgo"
+	"github.com/disgoorg/disgo"
+	"github.com/disgoorg/disgo/bot"
+	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/disgo/events"
+	"github.com/disgoorg/disgo/gateway"
+	"github.com/disgoorg/disgo/voice"
+	"github.com/disgoorg/godave/golibdave"
+	"github.com/disgoorg/snowflake/v2"
+
+	"VLX_ChatBridge/internal/core/module"
 )
 
 type DiscordBot struct {
-	token   string
-	prefix  string
-	admins  []string
-	session *discordgo.Session
-	vc      *discordgo.VoiceConnection
+	token           string
+	prefix          string
+	admins          []string
+	client          *bot.Client
+	controller      module.Controller
+	pendingShutdown map[snowflake.ID]snowflake.ID // channelID -> authorID
 }
 
-func NewBot(token string, prefix string, admins []string) *DiscordBot {
+func NewBot(token string, prefix string, admins []string, ctrl module.Controller) *DiscordBot {
 	return &DiscordBot{
-		token:  token,
-		prefix: prefix,
-		admins: admins,
+		token:           token,
+		prefix:          prefix,
+		admins:          admins,
+		controller:      ctrl,
+		pendingShutdown: make(map[snowflake.ID]snowflake.ID),
 	}
 }
 
@@ -33,24 +47,23 @@ func (b *DiscordBot) Connect() error {
 		return err
 	}
 
-	session, err := discordgo.New("Bot " + b.token)
+	client, err := disgo.New("Bot "+b.token,
+		bot.WithGatewayConfigOpts(gateway.WithIntents(gateway.IntentsAll)),
+		bot.WithEventListenerFunc(b.onReady),
+		bot.WithEventListenerFunc(b.onMessageCreate),
+		bot.WithVoiceManagerConfigOpts(
+			voice.WithDaveSessionCreateFunc(golibdave.NewSession),
+		),
+	)
 	if err != nil {
 		log.Printf("[AudioBridge] Failed to create Discord session: %v", err)
 		return err
 	}
 
-	// Set intents to receive necessary events (including privileged ones)
-	session.Identify.Intents = discordgo.IntentsAll
-
-	// Register event handlers
-	session.AddHandler(b.onReady)
-	session.AddHandler(b.onGuildCreate)
-	session.AddHandler(b.onMessageCreate)
-
-	b.session = session
+	b.client = client
 
 	log.Println("[AudioBridge] Opening Discord connection...")
-	if err := b.session.Open(); err != nil {
+	if err := b.client.OpenGateway(context.TODO()); err != nil {
 		log.Printf("[AudioBridge] Failed to open Discord connection: %v", err)
 		return err
 	}
@@ -61,54 +74,59 @@ func (b *DiscordBot) Connect() error {
 
 func (b *DiscordBot) Disconnect() error {
 	log.Println("[AudioBridge] Discord bot disconnecting...")
-	if b.session != nil {
-		if err := b.session.Close(); err != nil {
-			log.Printf("[AudioBridge] Error closing Discord connection: %v", err)
-			return err
-		}
+	if b.client != nil {
+		b.client.Close(context.TODO())
 		log.Println("[AudioBridge] Discord bot disconnected successfully.")
 	}
 	return nil
 }
 
-func (b *DiscordBot) onReady(s *discordgo.Session, event *discordgo.Ready) {
-	log.Printf("[AudioBridge] Discord bot ready! Logged in as: %s#%s", event.User.Username, event.User.Discriminator)
+func (b *DiscordBot) onReady(event *events.Ready) {
+	log.Printf("[AudioBridge] Discord bot ready! Logged in as: %s", event.User.Username)
 }
 
-func (b *DiscordBot) onGuildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
-	log.Printf("[AudioBridge] Connected to guild: %s (ID: %s)", event.Guild.Name, event.Guild.ID)
-	log.Printf("[AudioBridge] Guild Owner ID: %s", event.Guild.OwnerID)
-	log.Printf("[AudioBridge] Guild Channels count: %d", len(event.Guild.Channels))
-	for _, c := range event.Guild.Channels {
-		log.Printf("[AudioBridge] Channel: %s (ID: %s, Type: %d)", c.Name, c.ID, c.Type)
-	}
-}
-
-func (b *DiscordBot) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// Ignore messages created by the bot itself
-	if m.Author.ID == s.State.User.ID {
+func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
+	if event.Message.Author.Bot {
 		return
 	}
 
-	log.Printf("[AudioBridge] Message received in channel %s from %s: %s", m.ChannelID, m.Author.Username, m.Content)
-
-	if !strings.HasPrefix(m.Content, b.prefix) {
+	if event.GuildID == nil {
 		return
 	}
 
-	isAdmin := len(b.admins) == 0
-	for _, adminID := range b.admins {
-		if m.Author.ID == adminID || m.Author.Username == adminID {
-			isAdmin = true
-			break
+	guild, ok := event.Client().Caches.Guild(*event.GuildID)
+	if !ok {
+		return
+	}
+
+	// Only allow server owner
+	if guild.OwnerID != event.Message.Author.ID {
+		return
+	}
+
+	content := event.Message.Content
+
+	log.Printf("[AudioBridge] Message received in channel %s from %s: %s", event.ChannelID, event.Message.Author.Username, content)
+
+	// Handle pending shutdown confirmation
+	if authorID, exists := b.pendingShutdown[event.ChannelID]; exists && authorID == event.Message.Author.ID {
+		if strings.ToLower(content) == "yes" {
+			log.Printf("[AudioBridge] Shutdown confirmed by owner.")
+			event.Client().Rest.CreateMessage(event.ChannelID, discord.MessageCreate{Content: "Shutting down..."})
+			syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+		} else {
+			log.Printf("[AudioBridge] Shutdown declined by owner.")
+			event.Client().Rest.CreateMessage(event.ChannelID, discord.MessageCreate{Content: "Shutdown declined."})
 		}
-	}
-	if !isAdmin {
-		log.Printf("[AudioBridge] Unauthorized command attempt by %s (ID: %s)", m.Author.Username, m.Author.ID)
+		delete(b.pendingShutdown, event.ChannelID)
 		return
 	}
 
-	args := strings.Fields(m.Content[len(b.prefix):])
+	if !strings.HasPrefix(content, b.prefix) {
+		return
+	}
+
+	args := strings.Fields(content[len(b.prefix):])
 	if len(args) == 0 {
 		return
 	}
@@ -117,42 +135,53 @@ func (b *DiscordBot) onMessageCreate(s *discordgo.Session, m *discordgo.MessageC
 
 	switch command {
 	case "join":
-		var channelID string
+		var channelID snowflake.ID
 		if len(args) > 1 {
-			channelID = args[1]
-		} else {
-			vs, err := s.State.VoiceState(m.GuildID, m.Author.ID)
+			parsedID, err := snowflake.Parse(args[1])
 			if err != nil {
-				log.Printf("[AudioBridge] Could not find user %s in a voice channel: %v", m.Author.Username, err)
+				log.Printf("[AudioBridge] Invalid channel ID provided: %v", err)
 				return
 			}
-			channelID = vs.ChannelID
+			channelID = parsedID
+		} else {
+			vs, ok := event.Client().Caches.VoiceState(*event.GuildID, event.Message.Author.ID)
+			if !ok || vs.ChannelID == nil {
+				log.Printf("[AudioBridge] Could not find user %s in a voice channel.", event.Message.Author.Username)
+				return
+			}
+			channelID = *vs.ChannelID
 		}
 
-		if channelID == "" {
-			log.Printf("[AudioBridge] No channel ID provided and user is not in a voice channel.")
-			return
-		}
-
-		vc, err := s.ChannelVoiceJoin(m.GuildID, channelID, false, false)
+		conn := b.client.VoiceManager.CreateConn(*event.GuildID)
+		err := conn.Open(context.TODO(), channelID, false, false)
 		if err != nil {
 			log.Printf("[AudioBridge] Failed to join voice channel %s: %v", channelID, err)
 			return
 		}
-		b.vc = vc
 		log.Printf("[AudioBridge] Joined voice channel %s successfully.", channelID)
 
 	case "leave":
-		if b.vc != nil {
-			err := b.vc.Disconnect()
-			if err != nil {
-				log.Printf("[AudioBridge] Failed to disconnect from voice channel: %v", err)
-			} else {
-				log.Printf("[AudioBridge] Left voice channel successfully.")
-			}
-			b.vc = nil
+		conn := b.client.VoiceManager.GetConn(*event.GuildID)
+		if conn != nil {
+			conn.Close(context.TODO())
+			b.client.VoiceManager.RemoveConn(*event.GuildID)
+			log.Printf("[AudioBridge] Left voice channel successfully.")
 		} else {
 			log.Printf("[AudioBridge] Not currently connected to a voice channel.")
 		}
+
+	case "reload":
+		log.Printf("[AudioBridge] Reloading AudioBridge module...")
+		go func() {
+			if b.controller != nil {
+				b.controller.StopModule("AudioBridge")
+				b.controller.StartModule("AudioBridge")
+			}
+		}()
+
+	case "shutdown":
+		b.pendingShutdown[event.ChannelID] = event.Message.Author.ID
+		log.Printf("[AudioBridge] Pending shutdown requested by %s", event.Message.Author.Username)
+		event.Client().Rest.CreateMessage(event.ChannelID, discord.MessageCreate{Content: "Are you sure you want to shutdown VLX_ChatBridge? Reply 'yes' to confirm."})
 	}
 }

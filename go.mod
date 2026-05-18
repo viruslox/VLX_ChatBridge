@@ -2,15 +2,22 @@ module VLX_ChatBridge
 
 go 1.24.3
 
-require gopkg.in/yaml.v3 v3.0.1
-
 require (
-	github.com/bwmarrin/discordgo v0.29.0
+	github.com/disgoorg/disgo v0.19.3
+	github.com/disgoorg/godave/golibdave v0.1.0
+	github.com/disgoorg/snowflake/v2 v2.0.3
 	github.com/hajimehoshi/go-mp3 v0.3.4
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/gorilla/websocket v1.4.2 // indirect
-	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
-	golang.org/x/sys v0.0.0-20220712014510-0a85c31ab51e // indirect
+	github.com/disgoorg/godave v0.1.0 // indirect
+	github.com/disgoorg/godave/libdave v0.1.0 // indirect
+	github.com/disgoorg/json/v2 v2.0.0 // indirect
+	github.com/disgoorg/omit v1.0.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/klauspost/compress v1.18.4 // indirect
+	github.com/sasha-s/go-csync v0.0.0-20240107134140-fcbab37b09ad // indirect
+	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 )
