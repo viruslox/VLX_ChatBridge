@@ -47,7 +47,7 @@ func (b *DiscordBot) Connect() error {
 		return err
 	}
 
-	client, err := disgo.New("Bot "+b.token,
+	client, err := disgo.New(b.token,
 		bot.WithGatewayConfigOpts(gateway.WithIntents(gateway.IntentsAll)),
 		bot.WithEventListenerFunc(b.onReady),
 		bot.WithEventListenerFunc(b.onMessageCreate),
