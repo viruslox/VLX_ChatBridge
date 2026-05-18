@@ -47,7 +47,7 @@ func (m *Module) Start() error {
 		log.Printf("[AudioBridge] Internal audio pipe start error: %v", err)
 	}
 
-	m.bot = bot.NewBot(m.config.Discord.Token, m.config.Discord.Prefix, m.config.Discord.Admins)
+	m.bot = bot.NewBot(m.config.Discord.Token, m.config.Discord.Prefix, m.config.Discord.Admins, m.controller)
 	if err := m.bot.Connect(); err != nil {
 		log.Printf("[AudioBridge] Discord bot connect error: %v", err)
 	}
