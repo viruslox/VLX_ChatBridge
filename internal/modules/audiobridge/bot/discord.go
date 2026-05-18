@@ -3,18 +3,24 @@ package bot
 import (
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 type DiscordBot struct {
 	token   string
+	prefix  string
+	admins  []string
 	session *discordgo.Session
+	vc      *discordgo.VoiceConnection
 }
 
-func NewBot(token string) *DiscordBot {
+func NewBot(token string, prefix string, admins []string) *DiscordBot {
 	return &DiscordBot{
-		token: token,
+		token:  token,
+		prefix: prefix,
+		admins: admins,
 	}
 }
 
@@ -85,4 +91,68 @@ func (b *DiscordBot) onMessageCreate(s *discordgo.Session, m *discordgo.MessageC
 	}
 
 	log.Printf("[AudioBridge] Message received in channel %s from %s: %s", m.ChannelID, m.Author.Username, m.Content)
+
+	if !strings.HasPrefix(m.Content, b.prefix) {
+		return
+	}
+
+	isAdmin := len(b.admins) == 0
+	for _, adminID := range b.admins {
+		if m.Author.ID == adminID || m.Author.Username == adminID {
+			isAdmin = true
+			break
+		}
+	}
+	if !isAdmin {
+		log.Printf("[AudioBridge] Unauthorized command attempt by %s (ID: %s)", m.Author.Username, m.Author.ID)
+		return
+	}
+
+	args := strings.Fields(m.Content[len(b.prefix):])
+	if len(args) == 0 {
+		return
+	}
+
+	command := strings.ToLower(args[0])
+
+	switch command {
+	case "join":
+		var channelID string
+		if len(args) > 1 {
+			channelID = args[1]
+		} else {
+			vs, err := s.State.VoiceState(m.GuildID, m.Author.ID)
+			if err != nil {
+				log.Printf("[AudioBridge] Could not find user %s in a voice channel: %v", m.Author.Username, err)
+				return
+			}
+			channelID = vs.ChannelID
+		}
+
+		if channelID == "" {
+			log.Printf("[AudioBridge] No channel ID provided and user is not in a voice channel.")
+			return
+		}
+
+		vc, err := s.ChannelVoiceJoin(m.GuildID, channelID, false, false)
+		if err != nil {
+			log.Printf("[AudioBridge] Failed to join voice channel %s: %v", channelID, err)
+			return
+		}
+		b.vc = vc
+		log.Printf("[AudioBridge] Joined voice channel %s successfully.", channelID)
+
+	case "leave":
+		if b.vc != nil {
+			err := b.vc.Disconnect()
+			if err != nil {
+				log.Printf("[AudioBridge] Failed to disconnect from voice channel: %v", err)
+			} else {
+				log.Printf("[AudioBridge] Left voice channel successfully.")
+			}
+			b.vc = nil
+		} else {
+			log.Printf("[AudioBridge] Not currently connected to a voice channel.")
+		}
+	}
 }
