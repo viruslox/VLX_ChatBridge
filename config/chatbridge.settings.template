@@ -13,9 +13,11 @@ server:
 
 database:
   host: "localhost"
+  port: "5432"
   user: "postgres"
   password: "${DB_PASSWORD}"
   dbname: "chatbridge_db"
+  sslmode: "disable"
 
 twitch:
   client_id: ""
