@@ -14,9 +14,9 @@ type Config struct {
 	Twitch       TwitchConfig            `yaml:"twitch"`
 	YouTube      YouTubeConfig           `yaml:"youtube"`
 	Overlay      OverlayConfig           `yaml:"overlay"`
-	Discord      DiscordConfig           `yaml:"discord"`
-	Streaming    StreamingConfig         `yaml:"streaming"`
-	AudioSources map[string]AudioSource  `yaml:"audio_source"`
+	Discord     DiscordConfig     `yaml:"discord"`
+	Streaming   StreamingConfig   `yaml:"streaming"`
+	AudioSource AudioSourceConfig `yaml:"audio_source"`
 }
 
 type ModulesConfig struct {
@@ -59,30 +59,51 @@ type TwitchChatConfig struct {
 }
 
 type YouTubeConfig struct {
-	APIKey    string `yaml:"api_key"`
-	ChannelID string `yaml:"channel_id"`
+	APIKey          string               `yaml:"api_key"`
+	ChannelID       string               `yaml:"channel_id"`
+	PollingInterval int                  `yaml:"polling_interval"`
+	Monitor         YouTubeMonitorConfig `yaml:"monitor"`
+}
+
+type YouTubeMonitorConfig struct {
+	ChannelIDs []string `yaml:"channel_ids"`
 }
 
 type OverlayConfig struct {
-	Enable bool `yaml:"enable"`
+	Enable bool                `yaml:"enable"`
+	Emotes OverlayTargetConfig `yaml:"emotes"`
+	Alerts OverlayTargetConfig `yaml:"alerts"`
+	Chat   OverlayTargetConfig `yaml:"chat"`
+}
+
+type OverlayTargetConfig struct {
+	HTML      bool `yaml:"html"`
+	Discord   bool `yaml:"discord"`
+	Streaming bool `yaml:"streaming"`
+	Volume    int  `yaml:"volume"`
 }
 
 type DiscordConfig struct {
-	Token  string   `yaml:"token"`
-	Prefix string   `yaml:"prefix"`
-	Admins []string `yaml:"admins"`
+	Token         string   `yaml:"token"`
+	Prefix        string   `yaml:"prefix"`
+	Admins        []string `yaml:"admins"`
+	GuildID       string   `yaml:"guild_id"`
+	DiscordOut    bool     `yaml:"discord_out"`
+	ExcludedUsers []string `yaml:"excluded_users"`
 }
 
 type StreamingConfig struct {
 	DestinationURL string `yaml:"destination_url"`
 	Bitrate        string `yaml:"bitrate"`
+	Volume         int    `yaml:"volume"`
 }
 
-type AudioSource struct {
-	Enable bool   `yaml:"enable"`
-	Type   string `yaml:"type"`
-	Volume int    `yaml:"volume"`
-	URL    string `yaml:"url"`
+type AudioSourceConfig struct {
+	Enable    bool   `yaml:"enable"`
+	Discord   bool   `yaml:"discord"`
+	Streaming bool   `yaml:"streaming"`
+	Volume    int    `yaml:"volume"`
+	URL       string `yaml:"url"`
 }
 
 // LoadConfig reads and parses the configuration file at the given path.
