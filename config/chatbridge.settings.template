@@ -8,8 +8,15 @@ modules:
 
 server:
   base_url: "https://your.ngrok.io"
+  path_prefix: "/asortofkey"
+  websocket_path: "/websocket"
+  allowed_origins:
+    - "https://net.example.com"
+    - "http://localhost:8000"
+    - "http://127.0.0.1:8000"
   port: "8000"
   test_port: "8001"
+  overlay_volume: 70 # Master volume for overlays (0-100%)
 
 database:
   host: "localhost"

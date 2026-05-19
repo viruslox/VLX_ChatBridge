@@ -25,9 +25,13 @@ type ModulesConfig struct {
 }
 
 type ServerConfig struct {
-	BaseURL  string `yaml:"base_url"`
-	Port     string `yaml:"port"`
-	TestPort string `yaml:"test_port"`
+	BaseURL        string   `yaml:"base_url"`
+	Port           string   `yaml:"port"`
+	TestPort       string   `yaml:"test_port"`
+	PathPrefix     string   `yaml:"path_prefix"`
+	WebsocketPath  string   `yaml:"websocket_path"`
+	AllowedOrigins []string `yaml:"allowed_origins"`
+	OverlayVolume  int      `yaml:"overlay_volume"`
 }
 
 type DatabaseConfig struct {

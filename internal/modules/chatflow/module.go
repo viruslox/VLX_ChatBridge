@@ -51,19 +51,29 @@ func (m *Module) Start() error {
 
 	mux := http.NewServeMux()
 
+	pathPrefix := m.config.Server.PathPrefix
+
 	// API endpoint to toggle modules
-	mux.HandleFunc("/api/modules/", m.handleModuleToggle)
+	mux.HandleFunc(pathPrefix+"/api/modules/", m.handleModuleToggle)
 
 	// API endpoint to simulate an alert
-	mux.HandleFunc("/api/alert", m.handleAlert)
+	mux.HandleFunc(pathPrefix+"/api/alert", m.handleAlert)
 
 	// WebSocket handler
-	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		websocket.ServeWs(m.hub, m.logger, []string{"*"}, w, r)
+	wsPath := m.config.Server.WebsocketPath
+	if wsPath == "" {
+		wsPath = "/ws"
+	}
+	mux.HandleFunc(pathPrefix+wsPath, func(w http.ResponseWriter, r *http.Request) {
+		allowedOrigins := m.config.Server.AllowedOrigins
+		if len(allowedOrigins) == 0 {
+			allowedOrigins = []string{"*"}
+		}
+		websocket.ServeWs(m.hub, m.logger, allowedOrigins, w, r)
 	})
 
 	// Twitch webhook handler
-	mux.HandleFunc("/webhooks/twitch", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pathPrefix+"/webhooks/twitch", func(w http.ResponseWriter, r *http.Request) {
 		if m.twitchClient != nil {
 			m.twitchClient.HandleEventSubCallback(w, r)
 		}
