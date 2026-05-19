@@ -2,33 +2,39 @@ package chatflow
 
 import (
 	"context"
-	"database/sql"
+
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
 	"VLX_ChatBridge/internal/core/module"
 	"VLX_ChatBridge/internal/modules/chatflow/audio"
+	"VLX_ChatBridge/internal/modules/chatflow/database"
 	"VLX_ChatBridge/internal/modules/chatflow/twitch"
 	"VLX_ChatBridge/internal/modules/chatflow/websocket"
 	"VLX_ChatBridge/internal/modules/chatflow/youtube"
+
+	"go.uber.org/zap"
 
 	_ "github.com/lib/pq"
 )
 
 // Module represents the ChatFlow component.
 type Module struct {
-	config     *config.Config
-	controller module.Controller
-	server     *http.Server
-	wsManager  *websocket.WebSocketManager
-	twitch     *twitch.TwitchClient
-	youtube    *youtube.YouTubeClient
-	db         *sql.DB
+	config        *config.Config
+	controller    module.Controller
+	server        *http.Server
+	logger        *zap.Logger
+	hub           *websocket.Hub
+	twitchClient  *twitch.Client
+	chatClient    *twitch.ChatClient
+	youtubeClient *youtube.Client
+	db            *database.DB
 }
 
 // NewModule creates a new instance of the ChatFlow module.
@@ -50,6 +56,18 @@ func (m *Module) Start() error {
 
 	// API endpoint to simulate an alert
 	mux.HandleFunc("/api/alert", m.handleAlert)
+
+	// WebSocket handler
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		websocket.ServeWs(m.hub, m.logger, []string{"*"}, w, r)
+	})
+
+	// Twitch webhook handler
+	mux.HandleFunc("/webhooks/twitch", func(w http.ResponseWriter, r *http.Request) {
+		if m.twitchClient != nil {
+			m.twitchClient.HandleEventSubCallback(w, r)
+		}
+	})
 
 	port := m.config.Server.Port
 	if port == "" {
@@ -77,40 +95,58 @@ func (m *Module) Start() error {
 	if dbSSLMode == "" {
 		dbSSLMode = "disable"
 	}
-	dbConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		m.config.Database.Host, dbPort, m.config.Database.User, m.config.Database.Password, m.config.Database.DBName, dbSSLMode)
-	db, err := sql.Open("postgres", dbConnStr)
+
+	logger, _ := zap.NewProduction()
+	m.logger = logger
+
+	dbConn, err := database.NewConnection(m.config.Database, logger)
 	if err != nil {
-		return fmt.Errorf("[ChatFlow] Database open error: %w", err)
-	}
-	if err := db.Ping(); err != nil {
 		return fmt.Errorf("[ChatFlow] Database connection error: %w", err)
 	}
-	m.db = db
-	log.Println("[ChatFlow] Database connected successfully.")
+	m.db = dbConn
 
-	// Initialize WebSockets, Twitch, YouTube
-	m.wsManager = websocket.NewManager()
-	if err := m.wsManager.Start(); err != nil {
-		log.Printf("[ChatFlow] WebSocket manager error: %v", err)
+	// Initialize WebSockets
+	hub := websocket.NewHub(logger)
+	go hub.Run()
+	m.hub = hub
+
+	chatStaticDir := filepath.Join("static", "chat")
+	cmdMap, err := twitch.ScanAudioCommands(chatStaticDir, logger)
+	if err != nil {
+		logger.Warn("Audio commands scan failed", zap.Error(err))
 	}
 
-	if m.config.Twitch.ClientID != "" || m.config.Twitch.ChannelName != "" || m.config.Twitch.Chat.ChannelToJoin != "" {
-		m.twitch = twitch.NewClient(m.config.Twitch)
-		if err := m.twitch.Connect(); err != nil {
-			return fmt.Errorf("[ChatFlow] Twitch connection error: %w", err)
-		}
-	} else {
-		log.Println("[ChatFlow] Twitch disabled")
+	announcementsMap, err := twitch.ScanAnnouncements(chatStaticDir, logger)
+	if err != nil {
+		logger.Warn("Announcements scan failed", zap.Error(err))
 	}
 
-	if m.config.YouTube.ChannelID != "" {
-		m.youtube = youtube.NewClient()
-		if err := m.youtube.Connect(); err != nil {
-			return fmt.Errorf("[ChatFlow] YouTube connection error: %w", err)
+	twitchClient, err := twitch.NewClient(m.config, []string{m.config.Twitch.ChannelName}, m.config.Server.BaseURL, hub, m.db, logger)
+	if err != nil {
+		logger.Error("Twitch Client init failed", zap.Error(err))
+	}
+	m.twitchClient = twitchClient
+
+	if m.twitchClient != nil {
+		if err := m.twitchClient.StartMonitoring([]string{m.config.Twitch.ChannelName}); err != nil {
+			logger.Error("Twitch monitoring failed", zap.Error(err))
 		}
-	} else {
-		log.Println("[ChatFlow] YouTube disabled")
+	}
+
+	var chatClient *twitch.ChatClient
+	if cmdMap != nil && (m.config.Twitch.Chat.BotUsername != "" || m.config.Twitch.Chat.ChannelToJoin != "" || m.config.Twitch.ChannelName != "") {
+		chatClient = twitch.NewChatClient(m.config, hub, cmdMap, announcementsMap, logger)
+		chatClient.Start()
+	}
+	m.chatClient = chatClient
+
+	youtubeClient, err := youtube.NewClient(m.config, hub, m.db, cmdMap, logger)
+	if err != nil {
+		logger.Error("YouTube Client init failed", zap.Error(err))
+	}
+	m.youtubeClient = youtubeClient
+	if m.youtubeClient != nil {
+		m.youtubeClient.Start()
 	}
 
 	log.Println("[ChatFlow] Started successfully.")
@@ -193,24 +229,17 @@ func (m *Module) Stop() error {
 		}
 	}
 
-	if m.twitch != nil {
-		m.twitch.Disconnect()
+	if m.chatClient != nil {
+		m.chatClient.Stop()
 	}
 
-	if m.youtube != nil {
-		m.youtube.Disconnect()
-	}
-
-	if m.wsManager != nil {
-		m.wsManager.Stop()
+	if m.youtubeClient != nil {
+		m.youtubeClient.Stop()
 	}
 
 	if m.db != nil {
-		if err := m.db.Close(); err != nil {
-			log.Printf("[ChatFlow] Database shutdown error: %v", err)
-		} else {
-			log.Println("[ChatFlow] Database disconnected successfully.")
-		}
+		m.db.Close()
+		log.Println("[ChatFlow] Database disconnected successfully.")
 	}
 
 	log.Println("[ChatFlow] Stopped successfully.")
