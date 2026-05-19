@@ -2,6 +2,7 @@ package chatflow
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,6 +16,8 @@ import (
 	"VLX_ChatBridge/internal/modules/chatflow/twitch"
 	"VLX_ChatBridge/internal/modules/chatflow/websocket"
 	"VLX_ChatBridge/internal/modules/chatflow/youtube"
+
+	_ "github.com/lib/pq"
 )
 
 // Module represents the ChatFlow component.
@@ -25,6 +28,7 @@ type Module struct {
 	wsManager  *websocket.WebSocketManager
 	twitch     *twitch.TwitchClient
 	youtube    *youtube.YouTubeClient
+	db         *sql.DB
 }
 
 // NewModule creates a new instance of the ChatFlow module.
@@ -64,20 +68,41 @@ func (m *Module) Start() error {
 		}
 	}()
 
+	// Initialize Database connection
+	dbConnStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+		m.config.Database.Host, m.config.Database.User, m.config.Database.Password, m.config.Database.DBName)
+	db, err := sql.Open("postgres", dbConnStr)
+	if err != nil {
+		return fmt.Errorf("[ChatFlow] Database open error: %w", err)
+	}
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("[ChatFlow] Database connection error: %w", err)
+	}
+	m.db = db
+	log.Println("[ChatFlow] Database connected successfully.")
+
 	// Initialize WebSockets, Twitch, YouTube
 	m.wsManager = websocket.NewManager()
 	if err := m.wsManager.Start(); err != nil {
 		log.Printf("[ChatFlow] WebSocket manager error: %v", err)
 	}
 
-	m.twitch = twitch.NewClient()
-	if err := m.twitch.Connect(); err != nil {
-		log.Printf("[ChatFlow] Twitch client error: %v", err)
+	if m.config.Twitch.ClientID != "" {
+		m.twitch = twitch.NewClient()
+		if err := m.twitch.Connect(); err != nil {
+			return fmt.Errorf("[ChatFlow] Twitch connection error: %w", err)
+		}
+	} else {
+		log.Println("[ChatFlow] Twitch disabled")
 	}
 
-	m.youtube = youtube.NewClient()
-	if err := m.youtube.Connect(); err != nil {
-		log.Printf("[ChatFlow] YouTube client error: %v", err)
+	if m.config.YouTube.ChannelID != "" {
+		m.youtube = youtube.NewClient()
+		if err := m.youtube.Connect(); err != nil {
+			return fmt.Errorf("[ChatFlow] YouTube connection error: %w", err)
+		}
+	} else {
+		log.Println("[ChatFlow] YouTube disabled")
 	}
 
 	log.Println("[ChatFlow] Started successfully.")
@@ -170,6 +195,14 @@ func (m *Module) Stop() error {
 
 	if m.wsManager != nil {
 		m.wsManager.Stop()
+	}
+
+	if m.db != nil {
+		if err := m.db.Close(); err != nil {
+			log.Printf("[ChatFlow] Database shutdown error: %v", err)
+		} else {
+			log.Println("[ChatFlow] Database disconnected successfully.")
+		}
 	}
 
 	log.Println("[ChatFlow] Stopped successfully.")
