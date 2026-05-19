@@ -69,8 +69,16 @@ func (m *Module) Start() error {
 	}()
 
 	// Initialize Database connection
-	dbConnStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		m.config.Database.Host, m.config.Database.User, m.config.Database.Password, m.config.Database.DBName)
+	dbPort := m.config.Database.Port
+	if dbPort == "" {
+		dbPort = "5432"
+	}
+	dbSSLMode := m.config.Database.SSLMode
+	if dbSSLMode == "" {
+		dbSSLMode = "disable"
+	}
+	dbConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		m.config.Database.Host, dbPort, m.config.Database.User, m.config.Database.Password, m.config.Database.DBName, dbSSLMode)
 	db, err := sql.Open("postgres", dbConnStr)
 	if err != nil {
 		return fmt.Errorf("[ChatFlow] Database open error: %w", err)
