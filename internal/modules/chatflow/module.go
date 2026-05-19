@@ -95,8 +95,8 @@ func (m *Module) Start() error {
 		log.Printf("[ChatFlow] WebSocket manager error: %v", err)
 	}
 
-	if m.config.Twitch.ClientID != "" {
-		m.twitch = twitch.NewClient()
+	if m.config.Twitch.ClientID != "" || m.config.Twitch.ChannelName != "" || m.config.Twitch.Chat.ChannelToJoin != "" {
+		m.twitch = twitch.NewClient(m.config.Twitch)
 		if err := m.twitch.Connect(); err != nil {
 			return fmt.Errorf("[ChatFlow] Twitch connection error: %w", err)
 		}

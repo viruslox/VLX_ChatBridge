@@ -40,8 +40,18 @@ type DatabaseConfig struct {
 }
 
 type TwitchConfig struct {
-	ClientID     string `yaml:"client_id"`
-	ClientSecret string `yaml:"client_secret"`
+	ClientID      string           `yaml:"client_id"`
+	ClientSecret  string           `yaml:"client_secret"`
+	WebhookSecret string           `yaml:"webhook_secret"`
+	ChannelName   string           `yaml:"channel_name"`
+	Chat          TwitchChatConfig `yaml:"chat"`
+}
+
+type TwitchChatConfig struct {
+	BotUsername     string `yaml:"bot_username"`
+	BotToken        string `yaml:"bot_token"`
+	ChannelToJoin   string `yaml:"channel_to_join"`
+	CommandCooldown int    `yaml:"command_cooldown"`
 }
 
 type YouTubeConfig struct {
