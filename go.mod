@@ -15,6 +15,7 @@ require (
 	github.com/disgoorg/godave/libdave v0.1.0 // indirect
 	github.com/disgoorg/json/v2 v2.0.0 // indirect
 	github.com/disgoorg/omit v1.0.0 // indirect
+	github.com/gempir/go-twitch-irc/v4 v4.4.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/lib/pq v1.12.3 // indirect
