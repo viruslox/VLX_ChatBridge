@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	ChatBridgeDIR string                  `yaml:"chatbridge_DIR"`
 	Modules      ModulesConfig           `yaml:"modules"`
 	Server       ServerConfig            `yaml:"server"`
 	Database     DatabaseConfig          `yaml:"database"`

@@ -79,6 +79,14 @@ func (m *Module) Start() error {
 		}
 	})
 
+	// Static file server for overlays
+	baseDir := m.config.ChatBridgeDIR
+	if baseDir == "" {
+		baseDir = "."
+	}
+	staticPath := filepath.Join(baseDir, "static")
+	mux.Handle(pathPrefix+"/static/", http.StripPrefix(pathPrefix+"/static/", http.FileServer(http.Dir(staticPath))))
+
 	port := m.config.Server.Port
 	if port == "" {
 		port = "8000"
