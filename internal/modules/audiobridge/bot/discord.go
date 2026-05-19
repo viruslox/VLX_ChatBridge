@@ -9,6 +9,7 @@ import (
 
 	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
+	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
@@ -47,8 +48,9 @@ func (b *DiscordBot) Connect() error {
 		return err
 	}
 
-	client, err := disgo.New("Bot "+b.token,
+	client, err := disgo.New(b.token,
 		bot.WithGatewayConfigOpts(gateway.WithIntents(gateway.IntentsAll)),
+		bot.WithCacheConfigOpts(cache.WithCaches(cache.FlagsAll)),
 		bot.WithEventListenerFunc(b.onReady),
 		bot.WithEventListenerFunc(b.onMessageCreate),
 		bot.WithVoiceManagerConfigOpts(
