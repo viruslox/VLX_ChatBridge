@@ -155,19 +155,24 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 		}
 
 		conn := b.client.VoiceManager.CreateConn(*event.GuildID)
-		err := conn.Open(context.TODO(), channelID, false, false)
-		if err != nil {
-			log.Printf("[AudioBridge] Failed to join voice channel %s: %v", channelID, err)
-			return
-		}
-		log.Printf("[AudioBridge] Joined voice channel %s successfully.", channelID)
+		go func() {
+			err := conn.Open(context.TODO(), channelID, false, false)
+			if err != nil {
+				log.Printf("[AudioBridge] Failed to join voice channel %s: %v", channelID, err)
+				return
+			}
+			log.Printf("[AudioBridge] Joined voice channel %s successfully.", channelID)
+		}()
 
 	case "leave":
 		conn := b.client.VoiceManager.GetConn(*event.GuildID)
 		if conn != nil {
-			conn.Close(context.TODO())
-			b.client.VoiceManager.RemoveConn(*event.GuildID)
-			log.Printf("[AudioBridge] Left voice channel successfully.")
+			guildID := *event.GuildID
+			go func() {
+				conn.Close(context.TODO())
+				b.client.VoiceManager.RemoveConn(guildID)
+				log.Printf("[AudioBridge] Left voice channel successfully.")
+			}()
 		} else {
 			log.Printf("[AudioBridge] Not currently connected to a voice channel.")
 		}
