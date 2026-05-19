@@ -3,8 +3,8 @@ chatbridge_USER: "chatbridge"
 chatbridge_DIR: "/opt/VLX_ChatBridge"
 
 modules:
-  chatflow_enabled: true
-  audiobridge_enabled: true
+  chatflow_enabled: false
+  audiobridge_enabled: false
 
 server:
   base_url: "https://your.ngrok.io"
@@ -24,8 +24,11 @@ database:
   user: "postgres"
   password: "${DB_PASSWORD}"
   dbname: "chatbridge_db"
+  # 'disable', 'require', 'verify-full'
   sslmode: "disable"
 
+# Recommended to use 2 different accounts, or at least 2 difrerent tokens
+# You can create token with https://twitchtokengenerator.com/
 twitch:
   client_id: ""
   client_secret: ""
@@ -35,27 +38,61 @@ twitch:
     bot_username: ""
     bot_token: ""
     channel_to_join: ""
-    command_cooldown: 15
+    command_cooldown: 15  # General cooldown in seconds (default 15)
 
-youtube:
+# YouTube APIs
+youtube: # Leave empty to disable YouTube module
   api_key: ""
   channel_id: ""
+  polling_interval: 5  # re-read chat every x seconds; the default is 5
+  monitor:
+    channel_ids:
+    - "<channel id>"
 
+# Enables Overlays creations and reproduction routes: 
+# html -> audio+video overlay via "server" module
+# discord -> audio sent via discord module (reproduced in voice channel)
+# streaming -> audio sent via streaming  module (SRT) 
 overlay:
   enable: true
+  emotes: # emotes_overlay.html
+    html: on
+    discord: off
+    streaming: off
+    volume: 75
+  alerts: # alerts_overlay.html
+    html: on
+    discord: true
+    streaming: false
+    volume: 75
+  chat: # chat_overlay.html
+    html: on
+    discord: true
+    streaming: true
+    volume: 75
 
 discord:
-  token: "YOUR_DISCORD_BOT_TOKEN"
-  prefix: "vlx."
-  admins: ["111111111111111111"]
+  token: ""
+  prefix: "vlx."       # Commands prefix (es. !join, !leave)
+  guild_id: "<discord server id>" # Optional, but suggested: Restrict to specific Guild ID
+  # enable or disable the capture of discord voice channel audio via streaming module (SRT)
+  discord_out: true
+  # List of Discord User IDs of voice channels partecipante to mute on streaming module 
+  excluded_users:
+    - "<discord user id>"
+    - "<discord user id>"
 
 streaming:
-  destination_url: "srt://127.0.0.1:8890?streamid=publish:vlx_audio&mode=caller&pkt_size=1316"
-  bitrate: "128k"
+  # SRT Destination (e.g., MediaMTX) # mode=caller to enable "us" as media sender 
+  # <channel> is placeholder for overlay_<name>, audio_source, discord_out
+  destination_url: "srt://127.0.0.1:8890?streamid=publish:ChatBridge/<channel>:<srt user>:<srt pass>&mode=caller&pkt_size=1316"
+  bitrate: "128k" # Audio output Bitrate for FFmpeg
+  volume: 75    # 0-100, in percentage
 
 audio_source:
-  source1:
-    enable: yes
-    type: SRT
-    volume: 80
-    url: "srt://127.0.0.1:2020?"
+  # SRTs source to load and inject into Discord or sent via streaming module. NOTE: volume: 0-100 percentage.
+  enable: "yes"
+  discord: true
+  streaming: false
+  volume: 80
+  url: "srt://some.online.radio"
