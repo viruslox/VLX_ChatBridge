@@ -138,6 +138,19 @@ audio_source:
     url: "srt://127.0.0.1:2020?..."
 ```
 
+### Reverse Proxy Configuration
+
+The server supports a `path_prefix` configuration token that a reverse proxy can strip to enhance security.
+Below is an example of an Apache reverse proxy configuration that properly routes requests, including upgrading WebSocket connections.
+
+```apache
+RewriteCond %{HTTP:Upgrade} websocket [NC]
+RewriteCond %{HTTP:Connection} upgrade [NC]
+RewriteRule "^/<path_prefix>/wwf$" "ws://localhost:8000/wwf" [P,L]
+ProxyPass /<path_prefix>/ http://localhost:8000/
+ProxyPassReverse /<path_prefix>/ http://localhost:8000/
+```
+
 ---
 
 ## Usage
