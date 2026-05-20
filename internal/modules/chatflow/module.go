@@ -53,20 +53,22 @@ func (m *Module) Start() error {
 
 	mux := http.NewServeMux()
 
-	pathPrefix := m.config.Server.PathPrefix
-
 	// API endpoint to toggle modules
-	mux.HandleFunc(pathPrefix+"/api/modules/", m.handleModuleToggle)
+	mux.HandleFunc("/api/modules/", m.handleModuleToggle)
 
 	// API endpoint to simulate an alert
-	mux.HandleFunc(pathPrefix+"/api/alert", m.handleAlert)
+	mux.HandleFunc("/api/alert", m.handleAlert)
 
 	// WebSocket handler
 	wsPath := m.config.Server.WebsocketPath
 	if wsPath == "" {
 		wsPath = "/ws"
 	}
-	mux.HandleFunc(pathPrefix+wsPath, func(w http.ResponseWriter, r *http.Request) {
+	// Make sure the path starts with a slash
+	if !strings.HasPrefix(wsPath, "/") {
+		wsPath = "/" + wsPath
+	}
+	mux.HandleFunc(wsPath, func(w http.ResponseWriter, r *http.Request) {
 		allowedOrigins := m.config.Server.AllowedOrigins
 		if len(allowedOrigins) == 0 {
 			allowedOrigins = []string{"*"}
@@ -75,20 +77,20 @@ func (m *Module) Start() error {
 	})
 
 	// Twitch webhook handler
-	mux.HandleFunc(pathPrefix+"/webhooks/twitch", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/webhooks/twitch", func(w http.ResponseWriter, r *http.Request) {
 		if m.twitchClient != nil {
 			m.twitchClient.HandleEventSubCallback(w, r)
 		}
 	})
 
 	// Template routes
-	mux.HandleFunc(pathPrefix+"/static/alerts_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/static/alerts_overlay.html", func(w http.ResponseWriter, r *http.Request) {
 		m.serveTemplate(w, "alerts_overlay.html")
 	})
-	mux.HandleFunc(pathPrefix+"/static/chat_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/static/chat_overlay.html", func(w http.ResponseWriter, r *http.Request) {
 		m.serveTemplate(w, "chat_overlay.html")
 	})
-	mux.HandleFunc(pathPrefix+"/static/emotes_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/static/emotes_overlay.html", func(w http.ResponseWriter, r *http.Request) {
 		m.serveTemplate(w, "emotes_overlay.html")
 	})
 
@@ -98,7 +100,7 @@ func (m *Module) Start() error {
 		baseDir = "."
 	}
 	staticPath := filepath.Join(baseDir, "static")
-	mux.Handle(pathPrefix+"/static/", http.StripPrefix(pathPrefix+"/static/", http.FileServer(http.Dir(staticPath))))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))))
 
 	port := m.config.Server.Port
 	if port == "" {
