@@ -35,6 +35,27 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
+	log.Println("--- Application Configuration Status ---")
+	log.Printf("Module ChatFlow: %v", cfg.Modules.ChatFlowEnabled)
+	log.Printf("Module AudioBridge: %v", cfg.Modules.AudioBridgeEnabled)
+	log.Printf("Overlay Enable: %v", cfg.Overlay.Enable)
+	log.Printf("Overlay Emotes HTML: %v", cfg.Overlay.Emotes.HTML)
+	log.Printf("Overlay Emotes Discord: %v", cfg.Overlay.Emotes.Discord)
+	log.Printf("Overlay Emotes Streaming: %v", cfg.Overlay.Emotes.Streaming)
+	log.Printf("Overlay Alerts HTML: %v", cfg.Overlay.Alerts.HTML)
+	log.Printf("Overlay Alerts Discord: %v", cfg.Overlay.Alerts.Discord)
+	log.Printf("Overlay Alerts Streaming: %v", cfg.Overlay.Alerts.Streaming)
+	log.Printf("Overlay Chat HTML: %v", cfg.Overlay.Chat.HTML)
+	log.Printf("Overlay Chat Discord: %v", cfg.Overlay.Chat.Discord)
+	log.Printf("Overlay Chat Streaming: %v", cfg.Overlay.Chat.Streaming)
+	log.Printf("Discord Out (Capture): %v", cfg.Discord.DiscordOut)
+	log.Printf("AudioSource Enable: %v", cfg.AudioSource.Enable)
+	log.Printf("AudioSource Discord: %v", cfg.AudioSource.Discord)
+	log.Printf("AudioSource Streaming: %v", cfg.AudioSource.Streaming)
+	log.Println("----------------------------------------")
+
+	// Initialize Module Manager
+
 	// Initialize Module Manager
 	manager := module.NewManager()
 

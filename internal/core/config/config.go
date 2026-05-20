@@ -3,9 +3,34 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+type YesNoBool bool
+
+func (b *YesNoBool) UnmarshalYAML(value *yaml.Node) error {
+	if value.Style == yaml.DoubleQuotedStyle || value.Style == yaml.SingleQuotedStyle {
+		return fmt.Errorf("quotes are not allowed for boolean values: %q", value.Value)
+	}
+	val := strings.ToLower(value.Value)
+	if val == "yes" {
+		*b = true
+	} else if val == "no" {
+		*b = false
+	} else {
+		return fmt.Errorf("invalid boolean value %q, only 'yes' and 'no' are allowed", value.Value)
+	}
+	return nil
+}
+
+func (b YesNoBool) MarshalYAML() (interface{}, error) {
+	if b {
+		return "yes", nil
+	}
+	return "no", nil
+}
 
 type Config struct {
 	ChatBridgeDIR string                  `yaml:"chatbridge_DIR"`
@@ -21,8 +46,8 @@ type Config struct {
 }
 
 type ModulesConfig struct {
-	ChatFlowEnabled    bool `yaml:"chatflow_enabled"`
-	AudioBridgeEnabled bool `yaml:"audiobridge_enabled"`
+	ChatFlowEnabled    YesNoBool `yaml:"chatflow_enabled"`
+	AudioBridgeEnabled YesNoBool `yaml:"audiobridge_enabled"`
 }
 
 type ServerConfig struct {
@@ -71,16 +96,16 @@ type YouTubeMonitorConfig struct {
 }
 
 type OverlayConfig struct {
-	Enable bool                `yaml:"enable"`
+	Enable YesNoBool                `yaml:"enable"`
 	Emotes OverlayTargetConfig `yaml:"emotes"`
 	Alerts OverlayTargetConfig `yaml:"alerts"`
 	Chat   OverlayTargetConfig `yaml:"chat"`
 }
 
 type OverlayTargetConfig struct {
-	HTML      bool `yaml:"html"`
-	Discord   bool `yaml:"discord"`
-	Streaming bool `yaml:"streaming"`
+	HTML      YesNoBool `yaml:"html"`
+	Discord   YesNoBool `yaml:"discord"`
+	Streaming YesNoBool `yaml:"streaming"`
 	Volume    int  `yaml:"volume"`
 }
 
@@ -89,7 +114,7 @@ type DiscordConfig struct {
 	Prefix        string   `yaml:"prefix"`
 	Admins        []string `yaml:"admins"`
 	GuildID       string   `yaml:"guild_id"`
-	DiscordOut    bool     `yaml:"discord_out"`
+	DiscordOut    YesNoBool     `yaml:"discord_out"`
 	ExcludedUsers []string `yaml:"excluded_users"`
 }
 
@@ -100,9 +125,9 @@ type StreamingConfig struct {
 }
 
 type AudioSourceConfig struct {
-	Enable    bool   `yaml:"enable"`
-	Discord   bool   `yaml:"discord"`
-	Streaming bool   `yaml:"streaming"`
+	Enable    YesNoBool   `yaml:"enable"`
+	Discord   YesNoBool   `yaml:"discord"`
+	Streaming YesNoBool   `yaml:"streaming"`
 	Volume    int    `yaml:"volume"`
 	URL       string `yaml:"url"`
 }
