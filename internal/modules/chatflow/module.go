@@ -5,8 +5,10 @@ import (
 
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -77,6 +79,17 @@ func (m *Module) Start() error {
 		if m.twitchClient != nil {
 			m.twitchClient.HandleEventSubCallback(w, r)
 		}
+	})
+
+	// Template routes
+	mux.HandleFunc(pathPrefix+"/static/alerts_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+		m.serveTemplate(w, "alerts_overlay.html")
+	})
+	mux.HandleFunc(pathPrefix+"/static/chat_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+		m.serveTemplate(w, "chat_overlay.html")
+	})
+	mux.HandleFunc(pathPrefix+"/static/emotes_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+		m.serveTemplate(w, "emotes_overlay.html")
 	})
 
 	// Static file server for overlays
@@ -267,4 +280,54 @@ func (m *Module) Stop() error {
 // Name returns the module identifier.
 func (m *Module) Name() string {
 	return "ChatFlow"
+}
+
+func (m *Module) serveTemplate(w http.ResponseWriter, filename string) {
+	websocketPath := m.config.Server.WebsocketPath
+	pathPrefix := m.config.Server.PathPrefix
+
+	// Determine volume based on template filename, default to 100 if not set or invalid
+	vol := 100
+	switch filename {
+	case "alerts_overlay.html":
+		vol = m.config.Overlay.Alerts.Volume
+	case "chat_overlay.html":
+		vol = m.config.Overlay.Chat.Volume
+	case "emotes_overlay.html":
+		vol = m.config.Overlay.Emotes.Volume
+	}
+
+	publicWsPath := path.Join(pathPrefix, websocketPath)
+	publicAssetPrefix := pathPrefix
+
+	if vol < 0 {
+		vol = 100
+	}
+
+	data := struct {
+		WebsocketPath string
+		AssetPrefix   string
+		Volume        int // Injected volume
+	}{
+		WebsocketPath: publicWsPath,
+		AssetPrefix:   publicAssetPrefix,
+		Volume:        vol,
+	}
+
+	baseDir := m.config.ChatBridgeDIR
+	if baseDir == "" {
+		baseDir = "."
+	}
+	fp := filepath.Join(baseDir, "static", filename)
+	tmpl, err := template.ParseFiles(fp)
+	if err != nil {
+		m.logger.Error("Failed to parse template", zap.String("file", filename), zap.Error(err))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.Execute(w, data); err != nil {
+		m.logger.Error("Failed to execute template", zap.String("file", filename), zap.Error(err))
+	}
 }
