@@ -3,8 +3,8 @@ chatbridge_USER: "chatbridge"
 chatbridge_DIR: "/opt/VLX_ChatBridge"
 
 modules:
-  chatflow_enabled: false
-  audiobridge_enabled: false
+  chatflow_enabled: no
+  audiobridge_enabled: no
 
 server:
   base_url: "https://your.ngrok.io"
@@ -54,21 +54,21 @@ youtube: # Leave empty to disable YouTube module
 # discord -> audio sent via discord module (reproduced in voice channel)
 # streaming -> audio sent via streaming  module (SRT) 
 overlay:
-  enable: true
+  enable: yes
   emotes: # emotes_overlay.html
-    html: on
-    discord: off
-    streaming: off
+    html: yes
+    discord: no
+    streaming: no
     volume: 75
   alerts: # alerts_overlay.html
-    html: on
-    discord: true
-    streaming: false
+    html: yes
+    discord: yes
+    streaming: no
     volume: 75
   chat: # chat_overlay.html
-    html: on
-    discord: true
-    streaming: true
+    html: yes
+    discord: yes
+    streaming: yes
     volume: 75
 
 discord:
@@ -76,7 +76,7 @@ discord:
   prefix: "vlx."       # Commands prefix (es. !join, !leave)
   guild_id: "<discord server id>" # Optional, but suggested: Restrict to specific Guild ID
   # enable or disable the capture of discord voice channel audio via streaming module (SRT)
-  discord_out: true
+  discord_out: yes
   # List of Discord User IDs of voice channels partecipante to mute on streaming module 
   excluded_users:
     - "<discord user id>"
@@ -91,8 +91,8 @@ streaming:
 
 audio_source:
   # SRTs source to load and inject into Discord or sent via streaming module. NOTE: volume: 0-100 percentage.
-  enable: "yes"
-  discord: true
-  streaming: false
+  enable: yes
+  discord: yes
+  streaming: no
   volume: 80
   url: "srt://some.online.radio"
