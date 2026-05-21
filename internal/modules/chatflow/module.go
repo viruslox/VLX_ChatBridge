@@ -134,7 +134,7 @@ func (m *Module) Start() error {
 	go hub.Run()
 	m.hub = hub
 
-	chatStaticDir := filepath.Join("static", "chat")
+	chatStaticDir := filepath.Join(m.config.ChatBridgeDIR, "static", "chat")
 	cmdMap, err := twitch.ScanAudioCommands(chatStaticDir, logger)
 	if err != nil {
 		logger.Warn("Audio commands scan failed", zap.Error(err))
