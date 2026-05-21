@@ -14,10 +14,11 @@ import (
 type Module struct {
 	config     *config.Config
 	controller module.Controller
-	bot        *bot.DiscordBot
-	mixer      *stream.Mixer
-	srt        *stream.SRTManager
-	audioPipe  *internal_audio.Pipe
+	bot         *bot.DiscordBot
+	mixer       *stream.Mixer
+	srt         *stream.SRTManager
+	audioSource *stream.AudioSourceManager
+	audioPipe   *internal_audio.Pipe
 }
 
 // NewModule creates a new instance of the AudioBridge module.
@@ -42,6 +43,11 @@ func (m *Module) Start() error {
 	m.srt = stream.NewSRTManager(m.config, srtChan)
 	if err := m.srt.Start(); err != nil {
 		log.Printf("[AudioBridge] SRT manager start error: %v", err)
+	}
+
+	m.audioSource = stream.NewAudioSourceManager(m.config)
+	if err := m.audioSource.Start(); err != nil {
+		log.Printf("[AudioBridge] Audio Source manager start error: %v", err)
 	}
 
 	m.audioPipe = internal_audio.NewPipe()
@@ -73,6 +79,10 @@ func (m *Module) Stop() error {
 
 	if m.srt != nil {
 		m.srt.Stop()
+	}
+
+	if m.audioSource != nil {
+		m.audioSource.Stop()
 	}
 
 	if m.mixer != nil {
