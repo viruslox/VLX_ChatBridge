@@ -29,10 +29,10 @@ func TestAudioIntegrationFlow(t *testing.T) {
 	// Wait for PCM data to arrive on the channel
 	select {
 	case data := <-audio.PCMChannel:
-		if len(data) == 0 {
+		if len(data.Data) == 0 {
 			t.Errorf("received empty chunk on PCM channel")
 		} else {
-			t.Logf("Received %d bytes of PCM data successfully", len(data))
+			t.Logf("Received %d bytes of PCM data successfully", len(data.Data))
 		}
 	case <-time.After(2 * time.Second):
 		t.Errorf("timed out waiting for PCM data")

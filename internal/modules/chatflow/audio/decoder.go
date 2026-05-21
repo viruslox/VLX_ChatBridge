@@ -30,7 +30,10 @@ func DecodeMP3ToPCM(filePath string) error {
 			// Copy the slice so we don't hold the buffer in the channel
 			chunk := make([]byte, n)
 			copy(chunk, buf[:n])
-			audio.PCMChannel <- chunk
+			audio.PCMChannel <- audio.StreamData{
+				ID:   "chatflow_decoder",
+				Data: chunk,
+			}
 		}
 
 		if err == io.EOF {

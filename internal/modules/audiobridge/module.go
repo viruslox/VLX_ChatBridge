@@ -32,12 +32,14 @@ func NewModule(cfg *config.Config, ctrl module.Controller) *Module {
 func (m *Module) Start() error {
 	log.Println("[AudioBridge] Starting module...")
 
-	m.mixer = stream.NewMixer()
+	srtChan := make(chan []byte, 1024)
+
+	m.mixer = stream.NewMixer(m.config, srtChan)
 	if err := m.mixer.Start(); err != nil {
 		log.Printf("[AudioBridge] Mixer start error: %v", err)
 	}
 
-	m.srt = stream.NewSRTManager()
+	m.srt = stream.NewSRTManager(m.config, srtChan)
 	if err := m.srt.Start(); err != nil {
 		log.Printf("[AudioBridge] SRT manager start error: %v", err)
 	}

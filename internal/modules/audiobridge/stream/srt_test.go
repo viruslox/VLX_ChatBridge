@@ -5,13 +5,16 @@ import (
 	"time"
 
 	"VLX_ChatBridge/internal/core/audio"
+	"VLX_ChatBridge/internal/core/config"
 	"VLX_ChatBridge/internal/modules/audiobridge/stream"
 )
 
 func TestSRTEgressWithMixedAudio(t *testing.T) {
 	// Initialize and start components
-	mixer := stream.NewMixer()
-	srtManager := stream.NewSRTManager()
+	cfg := &config.Config{}
+	outChan := make(chan []byte, 10)
+	mixer := stream.NewMixer(cfg, outChan)
+	srtManager := stream.NewSRTManager(cfg, outChan)
 
 	if err := mixer.Start(); err != nil {
 		t.Fatalf("Failed to start mixer: %v", err)
@@ -25,9 +28,13 @@ func TestSRTEgressWithMixedAudio(t *testing.T) {
 
 	// Simulate sending audio from ChatFlow/Mixer into the audio pipeline for SRT egress
 	testChunk := []byte{0x00, 0x01, 0x02, 0x03}
+	streamData := audio.StreamData{
+		ID:   "test_stream",
+		Data: testChunk,
+	}
 
 	select {
-	case audio.PCMChannel <- testChunk:
+	case audio.PCMChannel <- streamData:
 		t.Log("Successfully sent test audio chunk to PCM pipeline")
 	case <-time.After(1 * time.Second):
 		t.Fatalf("Timed out sending test audio chunk")
