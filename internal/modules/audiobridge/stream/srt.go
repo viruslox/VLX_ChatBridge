@@ -38,7 +38,7 @@ func (s *SRTManager) Start() error {
 		bitrate = "128k"
 	}
 
-	// Setup FFmpeg command
+	// Setup FFmpeg command with options to keep connection alive
 	s.cmd = exec.Command("ffmpeg",
 		"-f", "s16le", // raw 16-bit little-endian PCM
 		"-ar", "48000", // 48kHz sample rate
@@ -46,7 +46,12 @@ func (s *SRTManager) Start() error {
 		"-i", "pipe:0", // Read from stdin
 		"-c:a", "libopus", // Encode to Opus
 		"-b:a", bitrate,
-		"-f", "mpegts", // Container
+		// Apply fifo to abstract network output, adding reliability, dropped packets rather than blocking, and infinite reconnects
+		"-f", "fifo",
+		"-fifo_format", "mpegts",
+		"-drop_pkts_on_overflow", "1",
+		"-attempt_recovery", "1",
+		"-recovery_wait_time", "1",
 		s.cfg.Streaming.DestinationURL,
 	)
 
