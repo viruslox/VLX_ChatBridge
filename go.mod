@@ -7,12 +7,11 @@ toolchain go1.24.3
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/disgoorg/disgo v0.18.16
-	github.com/disgoorg/godave/golibdave v0.1.0
 	github.com/disgoorg/snowflake/v2 v2.0.3
 	github.com/gempir/go-twitch-irc/v4 v4.4.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/hajimehoshi/go-mp3 v0.3.4
-	github.com/lib/pq v1.12.3
+	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/nicklaw5/helix/v2 v2.28.2
 	go.uber.org/zap v1.28.0
 	golang.org/x/time v0.5.0
@@ -22,8 +21,6 @@ require (
 
 require (
 	cloud.google.com/go/compute/metadata v0.5.2 // indirect
-	github.com/disgoorg/godave v0.1.0 // indirect
-	github.com/disgoorg/godave/libdave v0.1.0 // indirect
 	github.com/disgoorg/json v1.2.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect

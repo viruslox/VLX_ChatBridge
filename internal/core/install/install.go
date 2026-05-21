@@ -20,8 +20,9 @@ func Run() {
 	baseDir := "/opt/VLX_ChatBridge"
 	binDir := filepath.Join(baseDir, "bin")
 	etcDir := filepath.Join(baseDir, "etc")
+	varDir := filepath.Join(baseDir, "var")
 
-	dirs := []string{baseDir, binDir, etcDir}
+	dirs := []string{baseDir, binDir, etcDir, varDir}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			log.Fatalf("Failed to create directory %s: %v", dir, err)

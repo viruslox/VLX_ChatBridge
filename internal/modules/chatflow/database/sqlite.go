@@ -3,12 +3,12 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"net/url"
+	"strings"
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
 
-	"github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
 )
 
@@ -53,21 +53,14 @@ type YouTubeState struct {
 }
 
 // dbDriverName allows testing by overriding the sql driver.
-var dbDriverName = "postgres"
+var dbDriverName = "sqlite3"
 
 // NewConnection creates, configures, and tests a new connection.
 func NewConnection(cfg config.DatabaseConfig, logger *zap.Logger) (*DB, error) {
-	u := url.URL{
-		Scheme: "postgres",
-		Host:   fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
-		User:   url.UserPassword(cfg.User, cfg.Password),
-		Path:   cfg.DBName,
+	dsn := cfg.Path
+	if dsn == "" {
+		dsn = "file::memory:?cache=shared"
 	}
-	q := u.Query()
-	q.Set("sslmode", cfg.SSLMode)
-	u.RawQuery = q.Encode()
-
-	dsn := u.String()
 
 	sqlDB, err := sql.Open(dbDriverName, dsn)
 	if err != nil {
@@ -92,7 +85,7 @@ func (db *DB) Close() {
 
 func (db *DB) GetTwitchCredentials(userID string) (*TwitchCredentials, error) {
 	creds := &TwitchCredentials{UserID: userID}
-	query := `SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = $1`
+	query := `SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = ?`
 	err := db.sql.QueryRow(query, userID).Scan(&creds.AccessToken, &creds.RefreshToken, &creds.ExpiresAt)
 	return creds, err
 }
@@ -100,11 +93,11 @@ func (db *DB) GetTwitchCredentials(userID string) (*TwitchCredentials, error) {
 func (db *DB) UpsertTwitchCredentials(creds *TwitchCredentials) error {
 	query := `
 		INSERT INTO twitch_credentials (user_id, access_token, refresh_token, expires_at)
-		VALUES ($1, $2, $3, $4)
+		VALUES (?, ?, ?, ?)
 		ON CONFLICT (user_id) DO UPDATE SET
-			access_token = EXCLUDED.access_token,
-			refresh_token = EXCLUDED.refresh_token,
-			expires_at = EXCLUDED.expires_at
+			access_token = excluded.access_token,
+			refresh_token = excluded.refresh_token,
+			expires_at = excluded.expires_at
 	`
 	_, err := db.sql.Exec(query, creds.UserID, creds.AccessToken, creds.RefreshToken, creds.ExpiresAt)
 	return err
@@ -113,21 +106,21 @@ func (db *DB) UpsertTwitchCredentials(creds *TwitchCredentials) error {
 func (db *DB) CreateSubscription(sub *TwitchSubscription) error {
 	query := `
 		INSERT INTO twitch_subscriptions (id, user_id, event_type, status, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES (?, ?, ?, ?, ?)
 	`
 	_, err := db.sql.Exec(query, sub.ID, sub.UserID, sub.EventType, sub.Status, sub.CreatedAt)
 	return err
 }
 
 func (db *DB) DeleteSubscription(subscriptionID string) error {
-	query := `DELETE FROM twitch_subscriptions WHERE id = $1`
+	query := `DELETE FROM twitch_subscriptions WHERE id = ?`
 	_, err := db.sql.Exec(query, subscriptionID)
 	return err
 }
 
 func (db *DB) GetYouTubeState(channelID string) (*YouTubeState, error) {
 	state := &YouTubeState{ChannelID: channelID}
-	query := `SELECT live_chat_id, next_page_token, updated_at FROM youtube_state WHERE channel_id = $1`
+	query := `SELECT live_chat_id, next_page_token, updated_at FROM youtube_state WHERE channel_id = ?`
 	err := db.sql.QueryRow(query, channelID).Scan(&state.LiveChatID, &state.NextPageToken, &state.UpdatedAt)
 	return state, err
 }
@@ -135,11 +128,11 @@ func (db *DB) GetYouTubeState(channelID string) (*YouTubeState, error) {
 func (db *DB) UpsertYouTubeState(state *YouTubeState) error {
 	query := `
 		INSERT INTO youtube_state (channel_id, live_chat_id, next_page_token, updated_at)
-		VALUES ($1, $2, $3, $4)
+		VALUES (?, ?, ?, ?)
 		ON CONFLICT (channel_id) DO UPDATE SET
-			live_chat_id = EXCLUDED.live_chat_id,
-			next_page_token = EXCLUDED.next_page_token,
-			updated_at = EXCLUDED.updated_at
+			live_chat_id = excluded.live_chat_id,
+			next_page_token = excluded.next_page_token,
+			updated_at = excluded.updated_at
 	`
 	_, err := db.sql.Exec(query, state.ChannelID, state.LiveChatID, state.NextPageToken, state.UpdatedAt)
 	return err
@@ -151,9 +144,16 @@ func (db *DB) GetEnabledSubscriptionsByUsers(userIDs []string) (map[string]map[s
 		return result, nil
 	}
 
-	query := `SELECT user_id, event_type FROM twitch_subscriptions WHERE user_id = ANY($1) AND status = 'enabled'`
+	placeholders := make([]string, len(userIDs))
+	args := make([]interface{}, len(userIDs))
+	for i, id := range userIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
 
-	rows, err := db.sql.Query(query, pq.Array(userIDs))
+	query := fmt.Sprintf(`SELECT user_id, event_type FROM twitch_subscriptions WHERE user_id IN (%s) AND status = 'enabled'`, strings.Join(placeholders, ","))
+
+	rows, err := db.sql.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

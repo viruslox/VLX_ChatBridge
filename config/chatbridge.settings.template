@@ -19,13 +19,7 @@ server:
   overlay_volume: 70 # Master volume for overlays (0-100%)
 
 database:
-  host: "localhost"
-  port: "5432"
-  user: "postgres"
-  password: "${DB_PASSWORD}"
-  dbname: "chatbridge_db"
-  # 'disable', 'require', 'verify-full'
-  sslmode: "disable"
+  path: "/opt/VLX_ChatBridge/var/chatbridge.db"
 
 # Recommended to use 2 different accounts, or at least 2 difrerent tokens
 # You can create token with https://twitchtokengenerator.com/
