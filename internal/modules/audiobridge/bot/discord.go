@@ -13,6 +13,8 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
+	"github.com/disgoorg/disgo/voice"
+	"github.com/disgoorg/godave/golibdave"
 	"github.com/disgoorg/snowflake/v2"
 
 	"VLX_ChatBridge/internal/core/module"
@@ -22,7 +24,7 @@ type DiscordBot struct {
 	token           string
 	prefix          string
 	admins          []string
-	client          bot.Client
+	client          *bot.Client
 	controller      module.Controller
 	pendingShutdown map[snowflake.ID]snowflake.ID // channelID -> authorID
 	discordOutEnabled bool
@@ -55,6 +57,7 @@ func (b *DiscordBot) Connect() error {
 		bot.WithCacheConfigOpts(cache.WithCaches(cache.FlagsAll)),
 		bot.WithEventListenerFunc(b.onReady),
 		bot.WithEventListenerFunc(b.onMessageCreate),
+		bot.WithVoiceManagerConfigOpts(voice.WithDaveSessionCreateFunc(golibdave.NewSession)),
 	)
 	if err != nil {
 		log.Printf("[AudioBridge] Failed to create Discord session: %v", err)
@@ -95,7 +98,7 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 		return
 	}
 
-	guild, ok := event.Client().Caches().Guild(*event.GuildID)
+	guild, ok := event.Client().Caches.Guild(*event.GuildID)
 	if !ok {
 		return
 	}
@@ -113,11 +116,11 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 	if authorID, exists := b.pendingShutdown[event.ChannelID]; exists && authorID == event.Message.Author.ID {
 		if strings.ToLower(content) == "yes" {
 			log.Printf("[AudioBridge] Shutdown confirmed by owner.")
-			event.Client().Rest().CreateMessage(event.ChannelID, discord.MessageCreate{Content: "Shutting down..."})
+			event.Client().Rest.CreateMessage(event.ChannelID, discord.MessageCreate{Content: "Shutting down..."})
 			syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 		} else {
 			log.Printf("[AudioBridge] Shutdown declined by owner.")
-			event.Client().Rest().CreateMessage(event.ChannelID, discord.MessageCreate{Content: "Shutdown declined."})
+			event.Client().Rest.CreateMessage(event.ChannelID, discord.MessageCreate{Content: "Shutdown declined."})
 		}
 		delete(b.pendingShutdown, event.ChannelID)
 		return
@@ -145,7 +148,7 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 			}
 			channelID = parsedID
 		} else {
-			vs, ok := event.Client().Caches().VoiceState(*event.GuildID, event.Message.Author.ID)
+			vs, ok := event.Client().Caches.VoiceState(*event.GuildID, event.Message.Author.ID)
 			if !ok || vs.ChannelID == nil {
 				log.Printf("[AudioBridge] Could not find user %s in a voice channel.", event.Message.Author.Username)
 				return
@@ -153,7 +156,7 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 			channelID = *vs.ChannelID
 		}
 
-		conn := b.client.VoiceManager().CreateConn(*event.GuildID)
+		conn := b.client.VoiceManager.CreateConn(*event.GuildID)
 		conn.SetOpusFrameReceiver(NewDiscordOpusReceiver(b.discordOutEnabled, b.excludedUsers))
 		go func() {
 			err := conn.Open(context.TODO(), channelID, false, false)
@@ -165,12 +168,12 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 		}()
 
 	case "leave":
-		conn := b.client.VoiceManager().GetConn(*event.GuildID)
+		conn := b.client.VoiceManager.GetConn(*event.GuildID)
 		if conn != nil {
 			guildID := *event.GuildID
 			go func() {
 				conn.Close(context.TODO())
-				b.client.VoiceManager().RemoveConn(guildID)
+				b.client.VoiceManager.RemoveConn(guildID)
 				log.Printf("[AudioBridge] Left voice channel successfully.")
 			}()
 		} else {
@@ -189,6 +192,6 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 	case "shutdown":
 		b.pendingShutdown[event.ChannelID] = event.Message.Author.ID
 		log.Printf("[AudioBridge] Pending shutdown requested by %s", event.Message.Author.Username)
-		event.Client().Rest().CreateMessage(event.ChannelID, discord.MessageCreate{Content: "Are you sure you want to shutdown VLX_ChatBridge? Reply 'yes' to confirm."})
+		event.Client().Rest.CreateMessage(event.ChannelID, discord.MessageCreate{Content: "Are you sure you want to shutdown VLX_ChatBridge? Reply 'yes' to confirm."})
 	}
 }
