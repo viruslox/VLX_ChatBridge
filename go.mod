@@ -49,4 +49,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/grpc v1.65.0-dev // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
+	gopkg.in/hraban/opus.v2 v2.0.0-20230925203106-0188a62cb302 // indirect
 )

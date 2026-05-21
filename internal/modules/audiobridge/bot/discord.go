@@ -25,14 +25,18 @@ type DiscordBot struct {
 	client          bot.Client
 	controller      module.Controller
 	pendingShutdown map[snowflake.ID]snowflake.ID // channelID -> authorID
+	discordOutEnabled bool
+	excludedUsers []string
 }
 
-func NewBot(token string, prefix string, admins []string, ctrl module.Controller) *DiscordBot {
+func NewBot(token string, prefix string, admins []string, discordOutEnabled bool, excludedUsers []string, ctrl module.Controller) *DiscordBot {
 	return &DiscordBot{
 		token:           token,
 		prefix:          prefix,
 		admins:          admins,
 		controller:      ctrl,
+		discordOutEnabled: discordOutEnabled,
+		excludedUsers: excludedUsers,
 		pendingShutdown: make(map[snowflake.ID]snowflake.ID),
 	}
 }
@@ -150,6 +154,7 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 		}
 
 		conn := b.client.VoiceManager().CreateConn(*event.GuildID)
+		conn.SetOpusFrameReceiver(NewDiscordOpusReceiver(b.discordOutEnabled, b.excludedUsers))
 		go func() {
 			err := conn.Open(context.TODO(), channelID, false, false)
 			if err != nil {
