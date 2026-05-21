@@ -27,17 +27,17 @@ type DiscordBot struct {
 	client          *bot.Client
 	controller      module.Controller
 	pendingShutdown map[snowflake.ID]snowflake.ID // channelID -> authorID
-	discordOutEnabled bool
+	discordStreamingEnabled bool
 	excludedUsers []string
 }
 
-func NewBot(token string, prefix string, admins []string, discordOutEnabled bool, excludedUsers []string, ctrl module.Controller) *DiscordBot {
+func NewBot(token string, prefix string, admins []string, discordStreamingEnabled bool, excludedUsers []string, ctrl module.Controller) *DiscordBot {
 	return &DiscordBot{
 		token:           token,
 		prefix:          prefix,
 		admins:          admins,
 		controller:      ctrl,
-		discordOutEnabled: discordOutEnabled,
+		discordStreamingEnabled: discordStreamingEnabled,
 		excludedUsers: excludedUsers,
 		pendingShutdown: make(map[snowflake.ID]snowflake.ID),
 	}
@@ -163,7 +163,7 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 				log.Printf("[AudioBridge] Failed to join voice channel %s: %v", channelID, err)
 				return
 			}
-			conn.SetOpusFrameReceiver(NewDiscordOpusReceiver(b.discordOutEnabled, b.excludedUsers))
+			conn.SetOpusFrameReceiver(NewDiscordOpusReceiver(b.discordStreamingEnabled, b.excludedUsers))
 			log.Printf("[AudioBridge] Joined voice channel %s successfully.", channelID)
 		}()
 

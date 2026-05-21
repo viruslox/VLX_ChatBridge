@@ -13,11 +13,11 @@ import (
 
 type DiscordOpusReceiver struct {
 	decoder *opus.Decoder
-	configDiscordOut bool
+	configDiscordStreaming bool
 	excludedUsers map[string]struct{}
 }
 
-func NewDiscordOpusReceiver(discordOutEnabled bool, excludedUsersList []string) *DiscordOpusReceiver {
+func NewDiscordOpusReceiver(discordStreamingEnabled bool, excludedUsersList []string) *DiscordOpusReceiver {
 	// Discord sends 48kHz, 2 channels
 	decoder, err := opus.NewDecoder(48000, 2)
 	excludedMap := make(map[string]struct{})
@@ -27,17 +27,17 @@ func NewDiscordOpusReceiver(discordOutEnabled bool, excludedUsersList []string) 
 
 	if err != nil {
 		log.Printf("[AudioBridge] Failed to create Opus decoder: %v", err)
-		return &DiscordOpusReceiver{configDiscordOut: discordOutEnabled, excludedUsers: excludedMap}
+		return &DiscordOpusReceiver{configDiscordStreaming: discordStreamingEnabled, excludedUsers: excludedMap}
 	}
 	return &DiscordOpusReceiver{
 		decoder: decoder,
-		configDiscordOut: discordOutEnabled,
+		configDiscordStreaming: discordStreamingEnabled,
 		excludedUsers: excludedMap,
 	}
 }
 
 func (r *DiscordOpusReceiver) ReceiveOpusFrame(userID snowflake.ID, packet *voice.Packet) error {
-	if !r.configDiscordOut {
+	if !r.configDiscordStreaming {
 		return nil
 	}
 
