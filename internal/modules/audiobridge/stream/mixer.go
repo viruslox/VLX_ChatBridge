@@ -94,6 +94,9 @@ func (m *Mixer) mixLoop() {
 	attackCoef := math.Exp(-1.0 / (sampleRate * (attackTimeMs / 1000.0)))
 	releaseCoef := math.Exp(-1.0 / (sampleRate * (releaseTimeMs / 1000.0)))
 
+	// Reusable zeroed chunk for sending silence
+	silentChunk := make([]byte, chunkSize)
+
 	for {
 		select {
 		case <-ticker.C:
@@ -116,6 +119,13 @@ func (m *Mixer) mixLoop() {
 					if m.envelope < 50.0 {
 						m.gateGain = releaseCoef * m.gateGain
 					}
+				}
+
+				// Send a chunk of silence to keep the SRT stream active
+				select {
+				case m.outChan <- silentChunk:
+				default:
+					log.Println("[AudioBridge] Warning: Mixer output channel blocked, dropping silent chunk")
 				}
 				continue
 			}
