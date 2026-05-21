@@ -109,7 +109,7 @@ type DiscordConfig struct {
 	Prefix        string   `yaml:"prefix"`
 	Admins        []string `yaml:"admins"`
 	GuildID       string   `yaml:"guild_id"`
-	DiscordOut    YesNoBool     `yaml:"discord_out"`
+	Streaming     YesNoBool     `yaml:"streaming"`
 	ExcludedUsers []string `yaml:"excluded_users"`
 }
 

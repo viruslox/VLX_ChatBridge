@@ -70,7 +70,7 @@ discord:
   prefix: "vlx."       # Commands prefix (es. !join, !leave)
   guild_id: "<discord server id>" # Optional, but suggested: Restrict to specific Guild ID
   # enable or disable the capture of discord voice channel audio via streaming module (SRT)
-  discord_out: yes
+  streaming: yes
   # List of Discord User IDs of voice channels partecipante to mute on streaming module 
   excluded_users:
     - "<discord user id>"
@@ -78,7 +78,7 @@ discord:
 
 streaming:
   # SRT Destination (e.g., MediaMTX) # mode=caller to enable "us" as media sender 
-  # <channel> is placeholder for overlay_<name>, audio_source, discord_out
+  # <channel> is placeholder for overlay_<name>, audio_source, discord_streaming
   destination_url: "srt://127.0.0.1:8890?streamid=publish:ChatBridge/<channel>:<srt user>:<srt pass>&mode=caller&pkt_size=1316"
   bitrate: "128k" # Audio output Bitrate for FFmpeg
   volume: 75    # 0-100, in percentage

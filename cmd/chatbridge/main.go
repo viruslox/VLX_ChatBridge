@@ -48,7 +48,7 @@ func main() {
 	log.Printf("Overlay Chat HTML: %v", cfg.Overlay.Chat.HTML)
 	log.Printf("Overlay Chat Discord: %v", cfg.Overlay.Chat.Discord)
 	log.Printf("Overlay Chat Streaming: %v", cfg.Overlay.Chat.Streaming)
-	log.Printf("Discord Out (Capture): %v", cfg.Discord.DiscordOut)
+	log.Printf("Discord Streaming (Capture): %v", cfg.Discord.Streaming)
 	log.Printf("AudioSource Enable: %v", cfg.AudioSource.Enable)
 	log.Printf("AudioSource Discord: %v", cfg.AudioSource.Discord)
 	log.Printf("AudioSource Streaming: %v", cfg.AudioSource.Streaming)
