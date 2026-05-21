@@ -3,12 +3,11 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"net/url"
+
 	"testing"
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
-	"github.com/lib/pq"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"go.uber.org/zap"
@@ -34,7 +33,7 @@ func TestGetYouTubeState(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"live_chat_id", "next_page_token", "updated_at"}).
 			AddRow("chat_123", "token_456", now)
 
-		mock.ExpectQuery("^SELECT live_chat_id, next_page_token, updated_at FROM youtube_state WHERE channel_id = \\$1$").
+		mock.ExpectQuery("^SELECT live_chat_id, next_page_token, updated_at FROM youtube_state WHERE channel_id = \\?$").
 			WithArgs(channelID).
 			WillReturnRows(rows)
 
@@ -63,7 +62,7 @@ func TestGetYouTubeState(t *testing.T) {
 	})
 
 	t.Run("no rows error", func(t *testing.T) {
-		mock.ExpectQuery("^SELECT live_chat_id, next_page_token, updated_at FROM youtube_state WHERE channel_id = \\$1$").
+		mock.ExpectQuery("^SELECT live_chat_id, next_page_token, updated_at FROM youtube_state WHERE channel_id = \\?$").
 			WithArgs(channelID).
 			WillReturnError(sql.ErrNoRows)
 
@@ -88,26 +87,10 @@ func TestNewConnection(t *testing.T) {
 	defer func() { dbDriverName = oldDriver }()
 
 	cfg := config.DatabaseConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		User:     "user",
-		Password: "password",
-		DBName:   "testdb",
-		SSLMode:  "disable",
+		Path: "testdb.sqlite",
 	}
 
-	// Calculate expected DSN
-	u := url.URL{
-		Scheme: "postgres",
-		Host:   fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
-		User:   url.UserPassword(cfg.User, cfg.Password),
-		Path:   cfg.DBName,
-	}
-	q := u.Query()
-	q.Set("sslmode", cfg.SSLMode)
-	u.RawQuery = q.Encode()
-
-	dsn := u.String()
+	dsn := cfg.Path
 
 	t.Run("successful connection", func(t *testing.T) {
 		dbDriverName = "sqlmock"
@@ -136,20 +119,11 @@ func TestNewConnection(t *testing.T) {
 	t.Run("ping failure", func(t *testing.T) {
 		dbDriverName = "sqlmock"
 
-		cfgPingFail := cfg
-		cfgPingFail.DBName = "testdb_ping_fail"
-
-		uPingFail := url.URL{
-			Scheme: "postgres",
-			Host:   fmt.Sprintf("%s:%s", cfgPingFail.Host, cfgPingFail.Port),
-			User:   url.UserPassword(cfgPingFail.User, cfgPingFail.Password),
-			Path:   cfgPingFail.DBName,
+		cfgPingFail := config.DatabaseConfig{
+			Path: "testdb_ping_fail.sqlite",
 		}
-		qPingFail := uPingFail.Query()
-		qPingFail.Set("sslmode", cfgPingFail.SSLMode)
-		uPingFail.RawQuery = qPingFail.Encode()
 
-		dsnPingFail := uPingFail.String()
+		dsnPingFail := cfgPingFail.Path
 
 		db, mock, err := sqlmock.NewWithDSN(dsnPingFail, sqlmock.MonitorPingsOption(true))
 		if err != nil {
@@ -218,8 +192,8 @@ func TestGetEnabledSubscriptionsByUsers(t *testing.T) {
 			AddRow("user1", "channel.subscribe").
 			AddRow("user2", "channel.cheer")
 
-		mock.ExpectQuery("^SELECT user_id, event_type FROM twitch_subscriptions WHERE user_id = ANY\\(\\$1\\) AND status = 'enabled'$").
-			WithArgs(pq.Array(userIDs)).
+		mock.ExpectQuery("^SELECT user_id, event_type FROM twitch_subscriptions WHERE user_id IN \\(\\?,\\?\\) AND status = 'enabled'$").
+			WithArgs(userIDs[0], userIDs[1]).
 			WillReturnRows(rows)
 
 		result, err := testDB.GetEnabledSubscriptionsByUsers(userIDs)
@@ -249,8 +223,8 @@ func TestGetEnabledSubscriptionsByUsers(t *testing.T) {
 	t.Run("query error", func(t *testing.T) {
 		userIDs := []string{"user3"}
 
-		mock.ExpectQuery("^SELECT user_id, event_type FROM twitch_subscriptions WHERE user_id = ANY\\(\\$1\\) AND status = 'enabled'$").
-			WithArgs(pq.Array(userIDs)).
+		mock.ExpectQuery("^SELECT user_id, event_type FROM twitch_subscriptions WHERE user_id IN \\(\\?\\) AND status = 'enabled'$").
+			WithArgs(userIDs[0]).
 			WillReturnError(fmt.Errorf("db error"))
 
 		_, err := testDB.GetEnabledSubscriptionsByUsers(userIDs)
@@ -284,7 +258,7 @@ func TestGetTwitchCredentials(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"access_token", "refresh_token", "expires_at"}).
 			AddRow("access123", "refresh456", now)
 
-		mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\$1$").
+		mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\?$").
 			WithArgs(userID).
 			WillReturnRows(rows)
 
@@ -312,7 +286,7 @@ func TestGetTwitchCredentials(t *testing.T) {
 	})
 
 	t.Run("no rows error", func(t *testing.T) {
-		mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\$1$").
+		mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\?$").
 			WithArgs(userID).
 			WillReturnError(sql.ErrNoRows)
 
@@ -352,7 +326,7 @@ func TestUpsertTwitchCredentials(t *testing.T) {
 	}
 
 	t.Run("successful upsert", func(t *testing.T) {
-		mock.ExpectExec("^\\s*INSERT INTO twitch_credentials \\(user_id, access_token, refresh_token, expires_at\\)\\s*VALUES \\(\\$1, \\$2, \\$3, \\$4\\)\\s*ON CONFLICT \\(user_id\\) DO UPDATE SET\\s*access_token = EXCLUDED\\.access_token,\\s*refresh_token = EXCLUDED\\.refresh_token,\\s*expires_at = EXCLUDED\\.expires_at\\s*$").
+		mock.ExpectExec("^\\s*INSERT INTO twitch_credentials \\(user_id, access_token, refresh_token, expires_at\\)\\s*VALUES \\(\\?, \\?, \\?, \\?\\)\\s*ON CONFLICT \\(user_id\\) DO UPDATE SET\\s*access_token = excluded\\.access_token,\\s*refresh_token = excluded\\.refresh_token,\\s*expires_at = excluded\\.expires_at\\s*$").
 			WithArgs(creds.UserID, creds.AccessToken, creds.RefreshToken, creds.ExpiresAt).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -367,7 +341,7 @@ func TestUpsertTwitchCredentials(t *testing.T) {
 	})
 
 	t.Run("upsert error", func(t *testing.T) {
-		mock.ExpectExec("^\\s*INSERT INTO twitch_credentials \\(user_id, access_token, refresh_token, expires_at\\)\\s*VALUES \\(\\$1, \\$2, \\$3, \\$4\\)\\s*ON CONFLICT \\(user_id\\) DO UPDATE SET\\s*access_token = EXCLUDED\\.access_token,\\s*refresh_token = EXCLUDED\\.refresh_token,\\s*expires_at = EXCLUDED\\.expires_at\\s*$").
+		mock.ExpectExec("^\\s*INSERT INTO twitch_credentials \\(user_id, access_token, refresh_token, expires_at\\)\\s*VALUES \\(\\?, \\?, \\?, \\?\\)\\s*ON CONFLICT \\(user_id\\) DO UPDATE SET\\s*access_token = excluded\\.access_token,\\s*refresh_token = excluded\\.refresh_token,\\s*expires_at = excluded\\.expires_at\\s*$").
 			WithArgs(creds.UserID, creds.AccessToken, creds.RefreshToken, creds.ExpiresAt).
 			WillReturnError(fmt.Errorf("db error"))
 

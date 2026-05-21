@@ -42,7 +42,7 @@ func TestNewClient_Success(t *testing.T) {
 	db, mock := setupTestDB(t)
 
 	// Expectations for user token check
-	mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\$1$").
+	mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\?$").
 		WithArgs("mock_user_id").
 		WillReturnRows(sqlmock.NewRows([]string{"access_token", "refresh_token", "expires_at"}).
 			AddRow("db_token", "db_refresh", time.Now().Add(1*time.Hour)))
@@ -169,7 +169,7 @@ func TestNewClient_FallbackToken(t *testing.T) {
 	db, mock := setupTestDB(t)
 
 	// User not found in DB
-	mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\$1$").
+	mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\?$").
 		WithArgs("mock_user_id").
 		WillReturnError(sql.ErrNoRows)
 
@@ -227,7 +227,7 @@ func TestNewClient_InvalidToken(t *testing.T) {
 	db, mock := setupTestDB(t)
 
 	// User not found in DB
-	mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\$1$").
+	mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\?$").
 		WithArgs("mock_user_id").
 		WillReturnError(sql.ErrNoRows)
 
@@ -317,7 +317,7 @@ func TestNewClient_TokenRefresh(t *testing.T) {
 	db, mock := setupTestDB(t)
 
 	// User token is found in DB, but it's expired
-	mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\$1$").
+	mock.ExpectQuery("^SELECT access_token, refresh_token, expires_at FROM twitch_credentials WHERE user_id = \\?$").
 		WithArgs("mock_user_id").
 		WillReturnRows(sqlmock.NewRows([]string{"access_token", "refresh_token", "expires_at"}).
 			AddRow("expired_token", "refresh_token_123", time.Now().Add(-1*time.Hour)))

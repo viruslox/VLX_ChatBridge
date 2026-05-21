@@ -23,7 +23,7 @@ import (
 
 	"go.uber.org/zap"
 
-	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Module represents the ChatFlow component.
@@ -120,15 +120,6 @@ func (m *Module) Start() error {
 	}()
 
 	// Initialize Database connection
-	dbPort := m.config.Database.Port
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-	dbSSLMode := m.config.Database.SSLMode
-	if dbSSLMode == "" {
-		dbSSLMode = "disable"
-	}
-
 	logger, _ := zap.NewProduction()
 	m.logger = logger
 
