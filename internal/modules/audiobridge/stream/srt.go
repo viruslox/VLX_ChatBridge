@@ -44,6 +44,7 @@ func (s *SRTManager) Start() error {
 		"-ar", "48000", // 48kHz sample rate
 		"-ac", "2", // 2 channels (stereo)
 		"-i", "pipe:0", // Read from stdin
+		"-map", "0:a", // explicitly map audio
 		"-c:a", "libopus", // Encode to Opus
 		"-b:a", bitrate,
 		// Apply fifo to abstract network output, adding reliability, dropped packets rather than blocking, and infinite reconnects

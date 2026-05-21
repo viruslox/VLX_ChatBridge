@@ -125,7 +125,7 @@ func (m *Mixer) mixLoop() {
 				select {
 				case m.outChan <- silentChunk:
 				default:
-					log.Println("[AudioBridge] Warning: Mixer output channel blocked, dropping silent chunk")
+					// Silently drop if blocked to avoid log spam in the fast loop
 				}
 				continue
 			}
