@@ -114,9 +114,10 @@ type DiscordConfig struct {
 }
 
 type StreamingConfig struct {
-	DestinationURL string `yaml:"destination_url"`
-	Bitrate        string `yaml:"bitrate"`
-	Volume         int    `yaml:"volume"`
+	Enable         YesNoBool `yaml:"enable"`
+	DestinationURL string    `yaml:"destination_url"`
+	Bitrate        string    `yaml:"bitrate"`
+	Volume         int       `yaml:"volume"`
 }
 
 type AudioSourceConfig struct {
