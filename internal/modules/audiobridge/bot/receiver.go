@@ -71,8 +71,10 @@ func (r *DiscordOpusReceiver) ReceiveOpusFrame(userID snowflake.ID, packet *voic
 	}
 
 	audio.PCMChannel <- audio.StreamData{
-		ID:   "discord_" + userID.String(),
-		Data: buf.Bytes(),
+		ID:           "discord_" + userID.String(),
+		Data:         buf.Bytes(),
+		RouteSRT:     true, // Send Discord voice to streaming mixer
+		RouteDiscord: false, // DO NOT send it back to Discord
 	}
 
 	return nil
@@ -84,4 +86,56 @@ func (r *DiscordOpusReceiver) CleanupUser(userID snowflake.ID) {
 
 func (r *DiscordOpusReceiver) Close() {
 	// Cleanup if necessary
+}
+
+type DiscordPCMSender struct {
+	encoder *opus.Encoder
+	outChan <-chan []byte
+}
+
+func NewDiscordPCMSender(outChan <-chan []byte) *DiscordPCMSender {
+	encoder, err := opus.NewEncoder(48000, 2, opus.AppAudio)
+	if err != nil {
+		log.Printf("[AudioBridge] Failed to create Opus encoder: %v", err)
+		return &DiscordPCMSender{outChan: outChan}
+	}
+	return &DiscordPCMSender{
+		encoder: encoder,
+		outChan: outChan,
+	}
+}
+
+func (s *DiscordPCMSender) ProvideOpusFrame() ([]byte, error) {
+	if s.encoder == nil {
+		return nil, nil // Return empty if encoder is missing
+	}
+
+	select {
+	case pcmData := <-s.outChan:
+		// Convert byte slice to int16 slice
+		if len(pcmData)%2 != 0 {
+			return nil, nil // Invalid size
+		}
+
+		samples := len(pcmData) / 2
+		pcm := make([]int16, samples)
+
+		buf := bytes.NewReader(pcmData)
+		if err := binary.Read(buf, binary.LittleEndian, &pcm); err != nil {
+			return nil, err
+		}
+
+		opusData := make([]byte, 1000)
+		n, err := s.encoder.Encode(pcm, opusData)
+		if err != nil {
+			return nil, err
+		}
+
+		return opusData[:n], nil
+	default:
+		return nil, nil // return empty byte slice
+	}
+}
+
+func (s *DiscordPCMSender) Close() {
 }

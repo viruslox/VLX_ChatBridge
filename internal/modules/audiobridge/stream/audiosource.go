@@ -64,9 +64,6 @@ func (a *AudioSourceManager) runLoop() {
 }
 
 func (a *AudioSourceManager) run() error {
-	// Setup FFmpeg command with options to ingest audio and decode to raw PCM
-	// Audio Source output is routed to audio.PCMChannel
-
 	cmd := exec.Command("ffmpeg",
 		"-hide_banner", "-loglevel", "error",
 		"-i", a.cfg.AudioSource.URL,
@@ -118,14 +115,12 @@ func (a *AudioSourceManager) run() error {
 			chunk := make([]byte, n)
 			copy(chunk, buf[:n])
 
-			// We always decode to the mixer if either streaming or discord requires it
-			// However the instructions say:
-			// audio_source (enable: yes, streaming: yes) -> decoded to PCM -> audio.PCMChannel (mixer)
-			// Actually if Discord needs it too, it routes through the mixer
 			if a.cfg.AudioSource.Streaming || a.cfg.AudioSource.Discord {
 				audio.PCMChannel <- audio.StreamData{
-					ID:   "audio_source",
-					Data: chunk,
+					ID:           "audio_source",
+					Data:         chunk,
+					RouteSRT:     bool(a.cfg.AudioSource.Streaming),
+					RouteDiscord: bool(a.cfg.AudioSource.Discord),
 				}
 			}
 		}
