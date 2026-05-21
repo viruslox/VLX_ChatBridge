@@ -3,46 +3,78 @@ package audio
 import (
 	"fmt"
 	"io"
+	"os/exec"
 	"os"
 
 	"VLX_ChatBridge/internal/core/audio"
-	"github.com/hajimehoshi/go-mp3"
 )
 
-// DecodeMP3ToPCM reads an mp3 file, decodes it, and sends the raw PCM
-// data to the core PCM channel in chunks.
-func DecodeMP3ToPCM(filePath string) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", filePath, err)
-	}
-	defer file.Close()
+// DecodeMediaToPCM uses FFmpeg to decode any media file to 48kHz stereo 16-bit PCM
+// and pushes it to the core PCM channel with the given routing flags.
+func DecodeMediaToPCM(id string, filePath string, routeSRT bool, routeDiscord bool) error {
+	// Setup FFmpeg command with options to ingest audio and decode to raw PCM
+	cmd := exec.Command("ffmpeg",
+		"-hide_banner", "-loglevel", "error",
+		"-i", filePath,
+		"-f", "s16le",     // raw 16-bit little-endian PCM
+		"-ar", "48000",    // 48kHz sample rate
+		"-ac", "2",        // 2 channels (stereo)
+		"pipe:1",          // Write to stdout
+	)
 
-	decoder, err := mp3.NewDecoder(file)
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("failed to create mp3 decoder: %w", err)
+		return fmt.Errorf("failed to create stdout pipe for ffmpeg: %w", err)
 	}
 
-	buf := make([]byte, 8192) // Process in chunks of 8KB
-	for {
-		n, err := decoder.Read(buf)
-		if n > 0 {
-			// Copy the slice so we don't hold the buffer in the channel
-			chunk := make([]byte, n)
-			copy(chunk, buf[:n])
-			audio.PCMChannel <- audio.StreamData{
-				ID:   "chatflow_decoder",
-				Data: chunk,
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start ffmpeg: %w", err)
+	}
+
+	go func() {
+		defer cmd.Wait()
+
+		buf := make([]byte, 3840) // 20ms of 48kHz stereo 16-bit PCM
+		for {
+			n, err := stdout.Read(buf)
+			if n > 0 {
+				chunk := make([]byte, n)
+				copy(chunk, buf[:n])
+				audio.PCMChannel <- audio.StreamData{
+					ID:           id,
+					Data:         chunk,
+					RouteSRT:     routeSRT,
+					RouteDiscord: routeDiscord,
+				}
+			}
+
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				fmt.Printf("[ChatFlow/Audio] Error reading from ffmpeg stdout: %v\n", err)
+				break
 			}
 		}
-
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("error reading from decoder: %w", err)
-		}
-	}
+	}()
 
 	return nil
+}
+
+// DecodeMP3ToPCM is kept for backward compatibility and testing.
+func DecodeMP3ToPCM(filePath string) error {
+	return DecodeMediaToPCM("chatflow_decoder", filePath, true, false)
+}
+
+// PlayAlert is a helper to decode a specific file with routing flags.
+func PlayAlert(id string, filePath string, routeSRT bool, routeDiscord bool) {
+	if filePath == "" {
+		return
+	}
+	err := DecodeMediaToPCM(id, filePath, routeSRT, routeDiscord)
+	if err != nil {
+		fmt.Printf("[ChatFlow/Audio] Failed to play alert %s: %v\n", filePath, err)
+	}
 }

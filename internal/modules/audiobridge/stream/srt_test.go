@@ -13,7 +13,8 @@ func TestSRTEgressWithMixedAudio(t *testing.T) {
 	// Initialize and start components
 	cfg := &config.Config{}
 	outChan := make(chan []byte, 10)
-	mixer := stream.NewMixer(cfg, outChan)
+	inChan := make(chan audio.StreamData, 10)
+	mixer := stream.NewMixer("TestMixer", 100, true, inChan, outChan)
 	srtManager := stream.NewSRTManager(cfg, outChan)
 
 	if err := mixer.Start(); err != nil {
@@ -34,7 +35,7 @@ func TestSRTEgressWithMixedAudio(t *testing.T) {
 	}
 
 	select {
-	case audio.PCMChannel <- streamData:
+	case inChan <- streamData:
 		t.Log("Successfully sent test audio chunk to PCM pipeline")
 	case <-time.After(1 * time.Second):
 		t.Fatalf("Timed out sending test audio chunk")

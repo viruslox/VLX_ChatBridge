@@ -21,25 +21,27 @@ import (
 )
 
 type DiscordBot struct {
-	token           string
-	prefix          string
-	admins          []string
-	client          *bot.Client
-	controller      module.Controller
-	pendingShutdown map[snowflake.ID]snowflake.ID // channelID -> authorID
+	token                   string
+	prefix                  string
+	admins                  []string
+	client                  *bot.Client
+	controller              module.Controller
+	pendingShutdown         map[snowflake.ID]snowflake.ID // channelID -> authorID
 	discordStreamingEnabled bool
-	excludedUsers []string
+	excludedUsers           []string
+	discordOutChan          <-chan []byte
 }
 
-func NewBot(token string, prefix string, admins []string, discordStreamingEnabled bool, excludedUsers []string, ctrl module.Controller) *DiscordBot {
+func NewBot(token string, prefix string, admins []string, discordStreamingEnabled bool, excludedUsers []string, ctrl module.Controller, discordOutChan <-chan []byte) *DiscordBot {
 	return &DiscordBot{
-		token:           token,
-		prefix:          prefix,
-		admins:          admins,
-		controller:      ctrl,
+		token:                   token,
+		prefix:                  prefix,
+		admins:                  admins,
+		controller:              ctrl,
 		discordStreamingEnabled: discordStreamingEnabled,
-		excludedUsers: excludedUsers,
-		pendingShutdown: make(map[snowflake.ID]snowflake.ID),
+		excludedUsers:           excludedUsers,
+		pendingShutdown:         make(map[snowflake.ID]snowflake.ID),
+		discordOutChan:          discordOutChan,
 	}
 }
 
@@ -164,6 +166,7 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 				return
 			}
 			conn.SetOpusFrameReceiver(NewDiscordOpusReceiver(b.discordStreamingEnabled, b.excludedUsers))
+			conn.SetOpusFrameProvider(NewDiscordPCMSender(b.discordOutChan))
 			log.Printf("[AudioBridge] Joined voice channel %s successfully.", channelID)
 		}()
 

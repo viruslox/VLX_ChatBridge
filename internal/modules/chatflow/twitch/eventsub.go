@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/modules/chatflow/audio"
+	"path/filepath"
 	"VLX_ChatBridge/internal/modules/chatflow/database"
 	"VLX_ChatBridge/internal/modules/chatflow/websocket"
 
@@ -595,10 +597,17 @@ func (c *Client) handleNotification(eventType string, eventData json.RawMessage)
 	if payload != nil {
 
 		htmlEnabled := c.config.Overlay.Enable
+		streamingEnabled := c.config.Overlay.Alerts.Streaming
+		discordEnabled := c.config.Overlay.Alerts.Discord
 
 
 		if htmlEnabled {
 			c.hub.BroadcastJSON(payload)
+		}
+
+		if streamingEnabled || discordEnabled {
+			fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
+			go audio.PlayAlert("twitch_alert", fullPath, bool(streamingEnabled), bool(discordEnabled))
 		}
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"VLX_ChatBridge/internal/core/audio"
-	"VLX_ChatBridge/internal/core/config"
 )
 
 const (
@@ -24,7 +23,8 @@ const (
 )
 
 type Mixer struct {
-	cfg        *config.Config
+	name       string
+	inChan     <-chan audio.StreamData
 	outChan    chan<- []byte
 	buffers    map[string]*bytes.Buffer
 	mu         sync.Mutex
@@ -32,28 +32,27 @@ type Mixer struct {
 	stopOnce   sync.Once
 	envelope   float64
 	gateGain   float64
+	volume     int
+	continuous bool
 }
 
-func NewMixer(cfg *config.Config, outChan chan<- []byte) *Mixer {
+func NewMixer(name string, volume int, continuous bool, inChan <-chan audio.StreamData, outChan chan<- []byte) *Mixer {
 	return &Mixer{
-		cfg:      cfg,
-		outChan:  outChan,
-		buffers:  make(map[string]*bytes.Buffer),
-		stopChan: make(chan struct{}),
+		name:       name,
+		inChan:     inChan,
+		outChan:    outChan,
+		buffers:    make(map[string]*bytes.Buffer),
+		stopChan:   make(chan struct{}),
+		volume:     volume,
+		continuous: continuous,
 	}
 }
 
 func (m *Mixer) Start() error {
-	log.Println("[AudioBridge] Mixer starting...")
-
-	if !m.cfg.Streaming.Enable {
-		log.Println("[AudioBridge] Streaming is disabled. Mixer will only drain audio data.")
-	}
+	log.Printf("[AudioBridge] Mixer (%s) starting...", m.name)
 
 	go m.readLoop()
-	if m.cfg.Streaming.Enable {
-		go m.mixLoop()
-	}
+	go m.mixLoop()
 
 	return nil
 }
@@ -61,12 +60,7 @@ func (m *Mixer) Start() error {
 func (m *Mixer) readLoop() {
 	for {
 		select {
-		case streamData := <-audio.PCMChannel:
-			if !m.cfg.Streaming.Enable {
-				// Discard data when streaming is disabled
-				continue
-			}
-
+		case streamData := <-m.inChan:
 			m.mu.Lock()
 			if _, exists := m.buffers[streamData.ID]; !exists {
 				m.buffers[streamData.ID] = new(bytes.Buffer)
@@ -74,7 +68,7 @@ func (m *Mixer) readLoop() {
 			m.buffers[streamData.ID].Write(streamData.Data)
 			m.mu.Unlock()
 		case <-m.stopChan:
-			log.Println("[AudioBridge] Mixer stopped reading PCM data.")
+			log.Printf("[AudioBridge] Mixer (%s) stopped reading PCM data.", m.name)
 			return
 		}
 	}
@@ -84,7 +78,7 @@ func (m *Mixer) mixLoop() {
 	ticker := time.NewTicker(time.Millisecond * tickRateMs)
 	defer ticker.Stop()
 
-	volumeConfig := m.cfg.Streaming.Volume
+	volumeConfig := m.volume
 	if volumeConfig == 0 {
 		volumeConfig = 75 // fallback
 	}
@@ -121,11 +115,13 @@ func (m *Mixer) mixLoop() {
 					}
 				}
 
-				// Send a chunk of silence to keep the SRT stream active
-				select {
-				case m.outChan <- silentChunk:
-				default:
-					// Silently drop if blocked to avoid log spam in the fast loop
+				if m.continuous {
+					// Send a chunk of silence to keep the stream active (e.g., SRT)
+					select {
+					case m.outChan <- silentChunk:
+					default:
+						// Silently drop if blocked to avoid log spam in the fast loop
+					}
 				}
 				continue
 			}
@@ -185,18 +181,18 @@ func (m *Mixer) mixLoop() {
 			select {
 			case m.outChan <- mixedChunk:
 			default:
-				log.Println("[AudioBridge] Warning: Mixer output channel blocked, dropping chunk")
+				log.Printf("[AudioBridge] Warning: Mixer (%s) output channel blocked, dropping chunk", m.name)
 			}
 
 		case <-m.stopChan:
-			log.Println("[AudioBridge] Mixer stopped mixing loop.")
+			log.Printf("[AudioBridge] Mixer (%s) stopped mixing loop.", m.name)
 			return
 		}
 	}
 }
 
 func (m *Mixer) Stop() error {
-	log.Println("[AudioBridge] Mixer stopping...")
+	log.Printf("[AudioBridge] Mixer (%s) stopping...", m.name)
 	m.stopOnce.Do(func() {
 		close(m.stopChan)
 	})

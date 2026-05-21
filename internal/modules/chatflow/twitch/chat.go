@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/modules/chatflow/audio"
 	"VLX_ChatBridge/internal/modules/chatflow/websocket"
 
 	"github.com/gempir/go-twitch-irc/v4"
@@ -500,10 +501,17 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 
 
 	htmlEnabled := c.config.Overlay.Enable
+	streamingEnabled := c.config.Overlay.Chat.Streaming
+	discordEnabled := c.config.Overlay.Chat.Discord
 
 
 	if htmlEnabled {
 		c.hub.BroadcastJSON(payload)
+	}
+
+	if streamingEnabled || discordEnabled {
+		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", lookup.cmdData.Filename)
+		go audio.PlayAlert("chat_command_" + commandName, fullPath, bool(streamingEnabled), bool(discordEnabled))
 	}
 }
 

@@ -37,7 +37,9 @@ func TestAudioIntegrationFlow(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Errorf("timed out waiting for PCM data")
 	case err := <-errChan:
-		t.Fatalf("DecodeMP3ToPCM failed: %v", err)
+		if err != nil {
+			t.Fatalf("DecodeMP3ToPCM failed: %v", err)
+		}
 	}
 
 	// Discard any remaining audio data to clean up the channel, or we just rely on tests exiting

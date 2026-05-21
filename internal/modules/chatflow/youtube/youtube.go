@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/modules/chatflow/audio"
+	"path/filepath"
 	"VLX_ChatBridge/internal/modules/chatflow/database"
 	"VLX_ChatBridge/internal/modules/chatflow/twitch"
 	"VLX_ChatBridge/internal/modules/chatflow/websocket"
@@ -313,19 +315,33 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 
 
 	htmlEnabled := c.config.Overlay.Enable
+	streamingEnabled := c.config.Overlay.Chat.Streaming
+	discordEnabled := c.config.Overlay.Chat.Discord
 
 
 	if htmlEnabled {
 		c.hub.BroadcastJSON(payload)
+	}
+
+	if streamingEnabled || discordEnabled {
+		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", cmdData.Filename)
+		go audio.PlayAlert("chat_command_" + commandName, fullPath, bool(streamingEnabled), bool(discordEnabled))
 	}
 }
 
 func (c *Client) broadcast(payload map[string]interface{}) {
 
 	htmlEnabled := c.config.Overlay.Enable
+	streamingEnabled := c.config.Overlay.Alerts.Streaming
+	discordEnabled := c.config.Overlay.Alerts.Discord
 
 
 	if htmlEnabled {
 		c.hub.BroadcastJSON(payload)
+	}
+
+	if streamingEnabled || discordEnabled {
+		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
+		go audio.PlayAlert("youtube_alert", fullPath, bool(streamingEnabled), bool(discordEnabled))
 	}
 }
