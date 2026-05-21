@@ -157,13 +157,13 @@ func (b *DiscordBot) onMessageCreate(event *events.MessageCreate) {
 		}
 
 		conn := b.client.VoiceManager.CreateConn(*event.GuildID)
-		conn.SetOpusFrameReceiver(NewDiscordOpusReceiver(b.discordOutEnabled, b.excludedUsers))
 		go func() {
 			err := conn.Open(context.TODO(), channelID, false, false)
 			if err != nil {
 				log.Printf("[AudioBridge] Failed to join voice channel %s: %v", channelID, err)
 				return
 			}
+			conn.SetOpusFrameReceiver(NewDiscordOpusReceiver(b.discordOutEnabled, b.excludedUsers))
 			log.Printf("[AudioBridge] Joined voice channel %s successfully.", channelID)
 		}()
 
