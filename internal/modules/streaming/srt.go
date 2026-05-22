@@ -1,4 +1,4 @@
-package stream
+package streaming
 
 import (
 	"log"
@@ -26,10 +26,10 @@ func NewSRTManager(cfg *config.Config, inChan <-chan []byte) *SRTManager {
 }
 
 func (s *SRTManager) Start() error {
-	log.Println("[AudioBridge] SRT manager starting...")
+	log.Println("[Streaming] SRT manager starting...")
 
 	if !s.cfg.Streaming.Enable {
-		log.Println("[AudioBridge] Streaming module is disabled. SRT manager will not start.")
+		log.Println("[Streaming] Streaming module is disabled. SRT manager will not start.")
 		return nil
 	}
 
@@ -58,7 +58,7 @@ func (s *SRTManager) Start() error {
 
 	stdin, err := s.cmd.StdinPipe()
 	if err != nil {
-		log.Printf("[AudioBridge] Failed to create stdin pipe for ffmpeg: %v", err)
+		log.Printf("[Streaming] Failed to create stdin pipe for ffmpeg: %v", err)
 		return err
 	}
 
@@ -66,7 +66,7 @@ func (s *SRTManager) Start() error {
 	s.cmd.Stderr = os.Stderr
 
 	if err := s.cmd.Start(); err != nil {
-		log.Printf("[AudioBridge] Failed to start ffmpeg: %v", err)
+		log.Printf("[Streaming] Failed to start ffmpeg: %v", err)
 		return err
 	}
 
@@ -81,7 +81,7 @@ func (s *SRTManager) Start() error {
 				}
 				_, err := stdin.Write(chunk)
 				if err != nil {
-					log.Printf("[AudioBridge] Error writing to ffmpeg stdin: %v", err)
+					log.Printf("[Streaming] Error writing to ffmpeg stdin: %v", err)
 					return
 				}
 			case <-s.stopChan:
@@ -94,7 +94,7 @@ func (s *SRTManager) Start() error {
 }
 
 func (s *SRTManager) Stop() error {
-	log.Println("[AudioBridge] SRT manager stopping...")
+	log.Println("[Streaming] SRT manager stopping...")
 	s.stopOnce.Do(func() {
 		close(s.stopChan)
 		if s.cmd != nil && s.cmd.Process != nil {

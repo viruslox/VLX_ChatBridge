@@ -12,6 +12,7 @@ import (
 	"VLX_ChatBridge/internal/core/module"
 	"VLX_ChatBridge/internal/modules/audiobridge"
 	"VLX_ChatBridge/internal/modules/chatflow"
+	"VLX_ChatBridge/internal/modules/streaming"
 )
 
 func main() {
@@ -38,6 +39,7 @@ func main() {
 	log.Println("--- Application Configuration Status ---")
 	log.Printf("Module ChatFlow: %v", cfg.Modules.ChatFlowEnabled)
 	log.Printf("Module AudioBridge: %v", cfg.Modules.AudioBridgeEnabled)
+	log.Printf("Module Streaming: %v", cfg.Modules.StreamingEnabled)
 	log.Printf("Overlay Enable: %v", cfg.Overlay.Enable)
 	log.Printf("Overlay Emotes HTML: %v", cfg.Overlay.Emotes.HTML)
 	log.Printf("Overlay Emotes Discord: %v", cfg.Overlay.Emotes.Discord)
@@ -74,15 +76,14 @@ func main() {
 		manager.Register(abModule)
 	} else {
 		log.Println("AudioBridge module is DISABLED.")
-		if cfg.Streaming.Enable {
-			log.Println("WARNING: Streaming is enabled in config, but AudioBridge module is disabled. Streaming requires AudioBridge to run.")
-		}
-		if cfg.Discord.Streaming {
-			log.Println("WARNING: Discord Capture is enabled in config, but AudioBridge module is disabled.")
-		}
-		if cfg.AudioSource.Enable {
-			log.Println("WARNING: AudioSource is enabled in config, but AudioBridge module is disabled.")
-		}
+	}
+
+	if cfg.Modules.StreamingEnabled {
+		log.Println("Streaming module is ENABLED. Registering Streaming module...")
+		strModule := streaming.NewModule(cfg, manager)
+		manager.Register(strModule)
+	} else {
+		log.Println("Streaming module is DISABLED.")
 	}
 
 	// Start all registered modules
