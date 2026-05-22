@@ -13,7 +13,6 @@ type Module struct {
 	controller  module.Controller
 	srtMixer    *audio.Mixer
 	srt         *SRTManager
-	audioSource *AudioSourceManager
 }
 
 func NewModule(cfg *config.Config, ctrl module.Controller) *Module {
@@ -38,11 +37,6 @@ func (m *Module) Start() error {
 		log.Printf("[Streaming] SRT manager start error: %v", err)
 	}
 
-	m.audioSource = NewAudioSourceManager(m.config)
-	if err := m.audioSource.Start(); err != nil {
-		log.Printf("[Streaming] Audio Source manager start error: %v", err)
-	}
-
 	log.Println("[Streaming] Started successfully.")
 	return nil
 }
@@ -52,10 +46,6 @@ func (m *Module) Stop() error {
 
 	if m.srt != nil {
 		m.srt.Stop()
-	}
-
-	if m.audioSource != nil {
-		m.audioSource.Stop()
 	}
 
 	if m.srtMixer != nil {

@@ -1,8 +1,6 @@
 package chatflow
 
 import (
-	"context"
-
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -11,7 +9,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"VLX_ChatBridge/internal/core/config"
 	"VLX_ChatBridge/internal/core/module"
@@ -30,7 +27,7 @@ import (
 type Module struct {
 	config        *config.Config
 	controller    module.Controller
-	server        *http.Server
+	mux           *http.ServeMux
 	logger        *zap.Logger
 	hub           *websocket.Hub
 	twitchClient  *twitch.Client
@@ -40,10 +37,11 @@ type Module struct {
 }
 
 // NewModule creates a new instance of the ChatFlow module.
-func NewModule(cfg *config.Config, ctrl module.Controller) *Module {
+func NewModule(cfg *config.Config, ctrl module.Controller, mux *http.ServeMux) *Module {
 	return &Module{
 		config:     cfg,
 		controller: ctrl,
+		mux:        mux,
 	}
 }
 
@@ -51,13 +49,11 @@ func NewModule(cfg *config.Config, ctrl module.Controller) *Module {
 func (m *Module) Start() error {
 	log.Println("[ChatFlow] Starting module...")
 
-	mux := http.NewServeMux()
-
 	// API endpoint to toggle modules
-	mux.HandleFunc("/api/modules/", m.handleModuleToggle)
+	m.mux.HandleFunc("/api/modules/", m.handleModuleToggle)
 
 	// API endpoint to simulate an alert
-	mux.HandleFunc("/api/alert", m.handleAlert)
+	m.mux.HandleFunc("/api/alert", m.handleAlert)
 
 	// WebSocket handler
 	wsPath := m.config.Server.WebsocketPath
@@ -68,7 +64,7 @@ func (m *Module) Start() error {
 	if !strings.HasPrefix(wsPath, "/") {
 		wsPath = "/" + wsPath
 	}
-	mux.HandleFunc(wsPath, func(w http.ResponseWriter, r *http.Request) {
+	m.mux.HandleFunc(wsPath, func(w http.ResponseWriter, r *http.Request) {
 		allowedOrigins := m.config.Server.AllowedOrigins
 		if len(allowedOrigins) == 0 {
 			allowedOrigins = []string{"*"}
@@ -77,20 +73,20 @@ func (m *Module) Start() error {
 	})
 
 	// Twitch webhook handler
-	mux.HandleFunc("/webhooks/twitch", func(w http.ResponseWriter, r *http.Request) {
+	m.mux.HandleFunc("/webhooks/twitch", func(w http.ResponseWriter, r *http.Request) {
 		if m.twitchClient != nil {
 			m.twitchClient.HandleEventSubCallback(w, r)
 		}
 	})
 
 	// Template routes
-	mux.HandleFunc("/static/alerts_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+	m.mux.HandleFunc("/static/alerts_overlay.html", func(w http.ResponseWriter, r *http.Request) {
 		m.serveTemplate(w, "alerts_overlay.html")
 	})
-	mux.HandleFunc("/static/chat_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+	m.mux.HandleFunc("/static/chat_overlay.html", func(w http.ResponseWriter, r *http.Request) {
 		m.serveTemplate(w, "chat_overlay.html")
 	})
-	mux.HandleFunc("/static/emotes_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+	m.mux.HandleFunc("/static/emotes_overlay.html", func(w http.ResponseWriter, r *http.Request) {
 		m.serveTemplate(w, "emotes_overlay.html")
 	})
 
@@ -100,24 +96,7 @@ func (m *Module) Start() error {
 		baseDir = "."
 	}
 	staticPath := filepath.Join(baseDir, "static")
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))))
-
-	port := m.config.Server.Port
-	if port == "" {
-		port = "8000"
-	}
-
-	m.server = &http.Server{
-		Addr:    ":" + port,
-		Handler: mux,
-	}
-
-	go func() {
-		log.Printf("[ChatFlow] HTTP server listening on %s", m.server.Addr)
-		if err := m.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("[ChatFlow] HTTP server error: %v", err)
-		}
-	}()
+	m.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))))
 
 	// Initialize Database connection
 	logger, _ := zap.NewProduction()
@@ -247,14 +226,6 @@ func (m *Module) handleAlert(w http.ResponseWriter, r *http.Request) {
 // Stop cleanly shuts down the ChatFlow components.
 func (m *Module) Stop() error {
 	log.Println("[ChatFlow] Stopping module...")
-
-	if m.server != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := m.server.Shutdown(ctx); err != nil {
-			log.Printf("[ChatFlow] HTTP server shutdown error: %v", err)
-		}
-	}
 
 	if m.chatClient != nil {
 		m.chatClient.Stop()

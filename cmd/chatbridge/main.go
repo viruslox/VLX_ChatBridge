@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,7 +12,9 @@ import (
 	"VLX_ChatBridge/internal/core/install"
 	"VLX_ChatBridge/internal/core/module"
 	"VLX_ChatBridge/internal/modules/audiobridge"
+	"VLX_ChatBridge/internal/modules/audiosource"
 	"VLX_ChatBridge/internal/modules/chatflow"
+	"VLX_ChatBridge/internal/modules/server"
 	"VLX_ChatBridge/internal/modules/streaming"
 )
 
@@ -39,7 +42,9 @@ func main() {
 	log.Println("--- Application Configuration Status ---")
 	log.Printf("Module ChatFlow: %v", cfg.Modules.ChatFlowEnabled)
 	log.Printf("Module AudioBridge: %v", cfg.Modules.AudioBridgeEnabled)
+	log.Printf("Module Server: %v", cfg.Modules.ServerEnabled)
 	log.Printf("Module Streaming: %v", cfg.Modules.StreamingEnabled)
+	log.Printf("Module AudioSource: %v", cfg.Modules.AudioSourceEnabled)
 	log.Printf("Overlay Enable: %v", cfg.Overlay.Enable)
 	log.Printf("Overlay Emotes HTML: %v", cfg.Overlay.Emotes.HTML)
 	log.Printf("Overlay Emotes Discord: %v", cfg.Overlay.Emotes.Discord)
@@ -58,13 +63,22 @@ func main() {
 	log.Println("----------------------------------------")
 
 	// Initialize Module Manager
-
-	// Initialize Module Manager
 	manager := module.NewManager()
+
+	// Shared HTTP mux for server and chatflow
+	mux := http.NewServeMux()
+
+	if cfg.Modules.ServerEnabled {
+		log.Println("Server module is ENABLED. Registering Server module...")
+		srvModule := server.NewModule(cfg, manager, mux)
+		manager.Register(srvModule)
+	} else {
+		log.Println("Server module is DISABLED.")
+	}
 
 	if cfg.Modules.ChatFlowEnabled {
 		log.Println("ChatFlow module is ENABLED. Registering ChatFlow module...")
-		cfModule := chatflow.NewModule(cfg, manager)
+		cfModule := chatflow.NewModule(cfg, manager, mux)
 		manager.Register(cfModule)
 	} else {
 		log.Println("ChatFlow module is DISABLED.")
@@ -84,6 +98,14 @@ func main() {
 		manager.Register(strModule)
 	} else {
 		log.Println("Streaming module is DISABLED.")
+	}
+
+	if cfg.Modules.AudioSourceEnabled {
+		log.Println("AudioSource module is ENABLED. Registering AudioSource module...")
+		asModule := audiosource.NewModule(cfg, manager)
+		manager.Register(asModule)
+	} else {
+		log.Println("AudioSource module is DISABLED.")
 	}
 
 	// Start all registered modules
