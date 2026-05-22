@@ -14,7 +14,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update
-          apt-get install -y git golang-go clang pkg-config libopus-dev cmake build-essential curl unzip tar tree
+          apt-get install -y git golang-go clang pkg-config libopus-dev libopusfile-dev cmake build-essential curl unzip tar tree ffmpeg
 
       - name: Install libdave
         run: |
@@ -34,10 +34,10 @@ jobs:
 
       - name: Run build script
         run: |
-          export PKG_CONFIG_PATH="/root/.local/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export PKG_CONFIG_PATH="$HOME/.local/lib/pkgconfig:$PKG_CONFIG_PATH"
           ./build.sh
 
       - name: Run tests
         run: |
-          export PKG_CONFIG_PATH="/root/.local/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export PKG_CONFIG_PATH="$HOME/.local/lib/pkgconfig:$PKG_CONFIG_PATH"
           go test ./...
