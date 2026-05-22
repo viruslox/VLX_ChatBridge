@@ -8,19 +8,25 @@ This project is a merge of **VLX_ChatFlow** (OBS Alert Overlay System) and **VLX
 
 ## Unified Architecture
 
-ChatBridge operates as a single binary with two primary, hot-swappable modules sharing a unified core:
+ChatBridge operates as a single binary with five primary, independently configurable, hot-swappable modules sharing a unified core:
 
 1.  **ChatFlow Module (Event Management & Overlays):**
     *   Ingests events via Twitch EventSub Webhooks and YouTube API Polling.
     *   Manages visual alerts, media commands via chat, and emote wall physics.
-    *   Serves low-latency WebSocket connections to OBS Browser Sources.
+    *   Depends on Twitch, YouTube, and Overlay configurations.
 2.  **AudioBridge Module (Audio Routing & Discord):**
     *   Connects to Discord voice channels.
-    *   **Direct Audio Integration:** Audio triggered by ChatFlow alerts and commands is decoded internally and piped directly into the audio mixer, eliminating the need for headless browser audio capture.
-    *   **Mixer & Egress:** Captures incoming Discord audio, mixes it with internal ChatFlow audio, and pipes the resulting PCM stream to FFmpeg for SRT transmission.
+    *   Captures incoming Discord audio, mixes it with internal ChatFlow audio, and pipes the resulting PCM stream.
+3.  **Server Module (HTTP/WebSocket Webserver):**
+    *   Serves low-latency WebSocket connections to OBS Browser Sources.
+    *   Hosts the frontend HTML/JS overlays.
+4.  **Streaming Module (SRT Egress):**
+    *   Manages the egress of mixed audio to an SRT destination via FFmpeg.
+5.  **AudioSource Module (Audio Feed Ingest):**
+    *   Ingests external audio feeds via FFmpeg and pipes them directly into the internal audio mixer.
 
 ### Hot-Swappable Modules
-Both the ChatFlow and AudioBridge modules can be enabled or disabled on-the-fly via configuration or runtime commands, allowing the server to act solely as an alert system, solely as an audio bridge, or both simultaneously.
+All five modules can be enabled or disabled on-the-fly via configuration (`modules` block), allowing the server to act solely as an alert system, an audio bridge, an SRT streamer, or a combination of them simultaneously.
 
 ---
 
@@ -30,7 +36,7 @@ Both the ChatFlow and AudioBridge modules can be enabled or disabled on-the-fly 
 *   **Twitch Integration:** EventSub Webhooks (Follows, Subs, Raids) and IRC Bot with Role-Based Access Control (!commands).
 *   **YouTube Integration:** Live polling for Super Chats, Stickers, and Memberships.
 *   **Overlays:** Alerts overlay, Chat Media overlay, and Emote Wall.
-*   **Smart Rate Limiting & Persistence:** Token buckets for API quotas and PostgreSQL for state/token management.
+*   **Smart Rate Limiting & Persistence:** Token buckets for API quotas and SQLite for state/token management.
 
 ### AudioBridge Features
 *   **Discord Ingress/Egress:** Joins voice channels, captures Opus packets (libdave/godave support), and injects internal audio.
@@ -49,10 +55,13 @@ VLX_ChatBridge/
 │       └── main.go              # Entry point. Initializes core and starts modules.
 ├── config.yml                   # Unified configuration file
 ├── internal/
-│   ├── core/                    # Shared components (config, logger, db)
+│   ├── core/                    # Shared components (config, logger, db, audio, module manager)
 │   └── modules/
 │       ├── chatflow/            # Logic for Twitch, YouTube, WebSockets, Overlays
-│       └── audiobridge/         # Logic for Discord bot, Mixer, SRT FFmpeg wrapper
+│       ├── audiobridge/         # Logic for Discord bot
+│       ├── server/              # Logic for HTTP webserver and reverse proxy mapping
+│       ├── streaming/           # Logic for SRT output mixing via FFmpeg
+│       └── audiosource/         # Logic for external audio ingest
 ├── static/                      # Frontend folder (HTML/JS/CSS/Assets for OBS)
 │   └── chat/                    # Audio/Video assets storage for commands
 └── scripts/                     # Systemd service files
@@ -62,7 +71,7 @@ VLX_ChatBridge/
 
 ## System Requirements
 *   **OS:** Linux (Tested on Debian)
-*   **Dependencies:** Go 1.21+, PostgreSQL, FFmpeg
+*   **Dependencies:** Go 1.21+, SQLite, FFmpeg
 *   *Note: PortAudio and Chromium dependencies previously required by AudioBridge have been removed in favor of direct internal audio decoding.*
 
 ## Installation & Build
@@ -100,19 +109,22 @@ Edit `/opt/VLX_ChatBridge/config.yml` to configure the system. You can use envir
 
 ```yaml
 modules:
-  chatflow_enabled: true
-  audiobridge_enabled: true
+  chatflow_enabled: yes
+  audiobridge_enabled: yes
+  server_enabled: yes
+  streaming_enabled: yes
+  audio_source_enabled: no
 
 server:
   base_url: "https://your.ngrok.io"
+  path_prefix: "/asortofkey"
+  websocket_path: "/websocket"
   port: "8000"
   test_port: "8001"
+  overlay_volume: 70
 
 database:
-  host: "localhost"
-  user: "postgres"
-  password: "${DB_PASSWORD}"
-  dbname: "chatbridge_db"
+  path: "/opt/VLX_ChatBridge/var/chatbridge.db"
 
 twitch:
   # ... Twitch App IDs, Secrets, Tokens ...
@@ -120,22 +132,38 @@ twitch:
 youtube:
   # ... YouTube API Key, Channel ID ...
 
+overlay:
+  enable: yes
+  emotes:
+    html: yes
+  alerts:
+    html: yes
+    discord: yes
+    streaming: no
+    volume: 75
+  chat:
+    html: yes
+    discord: yes
+    streaming: yes
+    volume: 75
+
 discord:
   token: "YOUR_DISCORD_BOT_TOKEN"
   prefix: "vlx."
-  admins: ["111111111111111111"]
+  streaming: yes
 
 streaming:
+  enable: yes
   destination_url: "srt://127.0.0.1:8890?streamid=publish:vlx_audio&mode=caller&pkt_size=1316"
   bitrate: "128k"
+  volume: 75
 
-# Note: audio_source configuration now only accepts SRT inputs. HTML inputs are managed internally.
 audio_source:
-  source1:
-    enable: yes
-    type: SRT
-    volume: 80
-    url: "srt://127.0.0.1:2020?..."
+  enable: no
+  discord: yes
+  streaming: no
+  volume: 80
+  url: "srt://127.0.0.1:2020?..."
 ```
 
 ### Reverse Proxy Configuration
