@@ -314,10 +314,9 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 	}
 
 
-	htmlEnabled := c.config.Overlay.Enable
-	streamingEnabled := c.config.Overlay.Chat.Streaming
-	discordEnabled := c.config.Overlay.Chat.Discord
-
+	htmlEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Chat.HTML)
+	streamingEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Chat.Streaming)
+	discordEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Chat.Discord)
 
 	if htmlEnabled {
 		c.hub.BroadcastJSON(payload)
@@ -325,16 +324,15 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 
 	if streamingEnabled || discordEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", cmdData.Filename)
-		go audio.PlayAlert("chat_command_" + commandName, fullPath, bool(streamingEnabled), bool(discordEnabled))
+		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled)
 	}
 }
 
 func (c *Client) broadcast(payload map[string]interface{}) {
 
-	htmlEnabled := c.config.Overlay.Enable
-	streamingEnabled := c.config.Overlay.Alerts.Streaming
-	discordEnabled := c.config.Overlay.Alerts.Discord
-
+	htmlEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Alerts.HTML)
+	streamingEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Alerts.Streaming)
+	discordEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Alerts.Discord)
 
 	if htmlEnabled {
 		c.hub.BroadcastJSON(payload)
@@ -342,6 +340,6 @@ func (c *Client) broadcast(payload map[string]interface{}) {
 
 	if streamingEnabled || discordEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
-		go audio.PlayAlert("youtube_alert", fullPath, bool(streamingEnabled), bool(discordEnabled))
+		go audio.PlayAlert("youtube_alert", fullPath, streamingEnabled, discordEnabled)
 	}
 }

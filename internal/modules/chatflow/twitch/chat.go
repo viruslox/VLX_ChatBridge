@@ -380,9 +380,7 @@ func (c *ChatClient) handleEmoteWall(message twitch.PrivateMessage) {
 				Emotes: emoteURLs,
 			}
 
-
-			htmlEnabled := c.config.Overlay.Enable
-
+			htmlEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Emotes.HTML)
 
 			if htmlEnabled {
 				c.hub.BroadcastJSON(payload)
@@ -500,10 +498,9 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 	}
 
 
-	htmlEnabled := c.config.Overlay.Enable
-	streamingEnabled := c.config.Overlay.Chat.Streaming
-	discordEnabled := c.config.Overlay.Chat.Discord
-
+	htmlEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Chat.HTML)
+	streamingEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Chat.Streaming)
+	discordEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Chat.Discord)
 
 	if htmlEnabled {
 		c.hub.BroadcastJSON(payload)
@@ -511,7 +508,7 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 
 	if streamingEnabled || discordEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", lookup.cmdData.Filename)
-		go audio.PlayAlert("chat_command_" + commandName, fullPath, bool(streamingEnabled), bool(discordEnabled))
+		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled)
 	}
 }
 
