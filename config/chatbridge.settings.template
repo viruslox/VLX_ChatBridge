@@ -57,9 +57,6 @@ overlay:
   enable: yes
   emotes: # emotes_overlay.html
     html: yes
-    discord: no
-    streaming: no
-    volume: 75
   alerts: # alerts_overlay.html
     html: yes
     discord: yes

@@ -47,8 +47,6 @@ func main() {
 	log.Printf("Module AudioSource: %v", cfg.Modules.AudioSourceEnabled)
 	log.Printf("Overlay Enable: %v", cfg.Overlay.Enable)
 	log.Printf("Overlay Emotes HTML: %v", cfg.Overlay.Emotes.HTML)
-	log.Printf("Overlay Emotes Discord: %v", cfg.Overlay.Emotes.Discord)
-	log.Printf("Overlay Emotes Streaming: %v", cfg.Overlay.Emotes.Streaming)
 	log.Printf("Overlay Alerts HTML: %v", cfg.Overlay.Alerts.HTML)
 	log.Printf("Overlay Alerts Discord: %v", cfg.Overlay.Alerts.Discord)
 	log.Printf("Overlay Alerts Streaming: %v", cfg.Overlay.Alerts.Streaming)
