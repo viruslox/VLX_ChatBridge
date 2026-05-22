@@ -49,6 +49,7 @@ func main() {
 	log.Printf("Overlay Chat Discord: %v", cfg.Overlay.Chat.Discord)
 	log.Printf("Overlay Chat Streaming: %v", cfg.Overlay.Chat.Streaming)
 	log.Printf("Discord Streaming (Capture): %v", cfg.Discord.Streaming)
+	log.Printf("Streaming Enable: %v", cfg.Streaming.Enable)
 	log.Printf("AudioSource Enable: %v", cfg.AudioSource.Enable)
 	log.Printf("AudioSource Discord: %v", cfg.AudioSource.Discord)
 	log.Printf("AudioSource Streaming: %v", cfg.AudioSource.Streaming)
@@ -73,6 +74,15 @@ func main() {
 		manager.Register(abModule)
 	} else {
 		log.Println("AudioBridge module is DISABLED.")
+		if cfg.Streaming.Enable {
+			log.Println("WARNING: Streaming is enabled in config, but AudioBridge module is disabled. Streaming requires AudioBridge to run.")
+		}
+		if cfg.Discord.Streaming {
+			log.Println("WARNING: Discord Capture is enabled in config, but AudioBridge module is disabled.")
+		}
+		if cfg.AudioSource.Enable {
+			log.Println("WARNING: AudioSource is enabled in config, but AudioBridge module is disabled.")
+		}
 	}
 
 	// Start all registered modules
