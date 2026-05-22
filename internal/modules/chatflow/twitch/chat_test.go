@@ -369,7 +369,10 @@ func TestScanAnnouncements_EdgeCases(t *testing.T) {
 		}
 
 		filePath := filepath.Join(announcementDir, "unreadable_30.txt")
-		if err := os.WriteFile(filePath, []byte("dummy"), 0222); err != nil { // write-only
+		if err := os.WriteFile(filePath, []byte("dummy"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(filePath, 0222); err != nil { // write-only
 			t.Fatal(err)
 		}
 
