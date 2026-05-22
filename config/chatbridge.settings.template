@@ -1,25 +1,21 @@
 # VLX ChatBridge User Profile
 chatbridge_USER: "chatbridge"
 chatbridge_DIR: "/opt/VLX_ChatBridge"
+database:
+  path: "/opt/VLX_ChatBridge/var/chatbridge.db"
 
-# Independent modules:
-# - chatflow
-# - audiobridge
-# - server (webserver)
-# - streaming
-# - audio_source
-#
-# Dependant modules:
+modules:
+  chatflow_enabled: no
+  audiobridge_enabled: no
+  server_enabled: no
+  streaming_enabled: no
+  audio_source_enabled: no
+
+# Modules dependency:
 # - discord -> audiobridge
 # - twitch -> chatflow
 # - youtube -> chatflow
 # - overlay -> chatflow
-modules:
-  chatflow_enabled: no
-  audiobridge_enabled: no
-  server_enabled: yes
-  streaming_enabled: no
-  audio_source_enabled: no
 
 server:
   base_url: "https://your.ngrok.io"
@@ -32,9 +28,6 @@ server:
   port: "8000"
   test_port: "8001"
   overlay_volume: 70 # Master volume for overlays (0-100%)
-
-database:
-  path: "/opt/VLX_ChatBridge/var/chatbridge.db"
 
 # Recommended to use 2 different accounts, or at least 2 difrerent tokens
 # You can create token with https://twitchtokengenerator.com/
@@ -58,10 +51,8 @@ youtube: # Leave empty to disable YouTube module
     channel_ids:
     - "<channel id>"
 
-# Enables Overlays creations and reproduction routes: 
-# html -> audio+video overlay via "server" module
-# discord -> audio sent via discord module (reproduced in voice channel)
-# streaming -> audio sent via streaming  module (SRT) 
+# Enables Overlays creations and reproduction routes: # html -> audio+video overlay via "server" module
+# discord -> audio sent via discord module (to voice channel) # streaming -> audio sent via streaming  module (SRT) 
 overlay:
   enable: yes
   emotes: # emotes_overlay.html
@@ -92,8 +83,8 @@ discord:
     - "<discord user id>"
 
 streaming:
+  enable: yes
   # SRT Destination (e.g., MediaMTX) # mode=caller to enable "us" as media sender 
-  # <channel> is placeholder for overlay_<name>, audio_source, discord_streaming
   destination_url: "srt://127.0.0.1:8890?streamid=publish:ChatBridge/<channel>:<srt user>:<srt pass>&mode=caller&pkt_size=1316"
   bitrate: "128k" # Audio output Bitrate for FFmpeg
   volume: 75    # 0-100, in percentage
