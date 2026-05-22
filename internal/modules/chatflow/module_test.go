@@ -14,7 +14,7 @@ func TestHandleModuleToggle(t *testing.T) {
 	manager := module.NewManager()
 	cfg := &config.Config{}
 
-	cfModule := NewModule(cfg, manager)
+	cfModule := NewModule(cfg, manager, http.NewServeMux())
 	manager.Register(cfModule)
 
 	// Test starting a module

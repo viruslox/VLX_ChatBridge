@@ -2,10 +2,24 @@
 chatbridge_USER: "chatbridge"
 chatbridge_DIR: "/opt/VLX_ChatBridge"
 
+# Independent modules:
+# - chatflow
+# - audiobridge
+# - server (webserver)
+# - streaming
+# - audio_source
+#
+# Dependant modules:
+# - discord -> audiobridge
+# - twitch -> chatflow
+# - youtube -> chatflow
+# - overlay -> chatflow
 modules:
   chatflow_enabled: no
   audiobridge_enabled: no
+  server_enabled: yes
   streaming_enabled: no
+  audio_source_enabled: no
 
 server:
   base_url: "https://your.ngrok.io"

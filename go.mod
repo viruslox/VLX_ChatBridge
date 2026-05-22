@@ -11,7 +11,6 @@ require (
 	github.com/disgoorg/snowflake/v2 v2.0.3
 	github.com/gempir/go-twitch-irc/v4 v4.4.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/nicklaw5/helix/v2 v2.28.2
 	go.uber.org/zap v1.28.0

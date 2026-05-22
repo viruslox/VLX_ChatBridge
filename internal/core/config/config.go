@@ -48,7 +48,9 @@ type Config struct {
 type ModulesConfig struct {
 	ChatFlowEnabled    YesNoBool `yaml:"chatflow_enabled"`
 	AudioBridgeEnabled YesNoBool `yaml:"audiobridge_enabled"`
+	ServerEnabled      YesNoBool `yaml:"server_enabled"`
 	StreamingEnabled   YesNoBool `yaml:"streaming_enabled"`
+	AudioSourceEnabled YesNoBool `yaml:"audio_source_enabled"`
 }
 
 type ServerConfig struct {
