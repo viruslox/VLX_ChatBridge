@@ -1,0 +1,3 @@
+[submodule "godave"]
+	path = godave
+	url = https://github.com/disgoorg/godave.git
