@@ -24,7 +24,11 @@ func TestProcessMessages(t *testing.T) {
 	}
 
 	cfg := &config.Config{
-		Overlay: config.OverlayConfig{Enable: true},
+		Overlay: config.OverlayConfig{
+			Enable: true,
+			Chat: config.OverlayTargetConfig{HTML: true},
+			Alerts: config.OverlayTargetConfig{HTML: true},
+		},
 	}
 
 	client := &Client{
@@ -110,7 +114,10 @@ func TestHandleCommand(t *testing.T) {
 	}
 
 	cfg := &config.Config{
-		Overlay: config.OverlayConfig{Enable: true},
+		Overlay: config.OverlayConfig{
+			Enable: true,
+			Chat: config.OverlayTargetConfig{HTML: true},
+		},
 	}
 
 	client := &Client{

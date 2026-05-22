@@ -596,10 +596,9 @@ func (c *Client) handleNotification(eventType string, eventData json.RawMessage)
 	}
 	if payload != nil {
 
-		htmlEnabled := c.config.Overlay.Enable
-		streamingEnabled := c.config.Overlay.Alerts.Streaming
-		discordEnabled := c.config.Overlay.Alerts.Discord
-
+		htmlEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Alerts.HTML)
+		streamingEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Alerts.Streaming)
+		discordEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Alerts.Discord)
 
 		if htmlEnabled {
 			c.hub.BroadcastJSON(payload)
@@ -607,7 +606,7 @@ func (c *Client) handleNotification(eventType string, eventData json.RawMessage)
 
 		if streamingEnabled || discordEnabled {
 			fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
-			go audio.PlayAlert("twitch_alert", fullPath, bool(streamingEnabled), bool(discordEnabled))
+			go audio.PlayAlert("twitch_alert", fullPath, streamingEnabled, discordEnabled)
 		}
 	}
 }
