@@ -1,4 +1,4 @@
-package stream_test
+package streaming_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 
 	"VLX_ChatBridge/internal/core/audio"
 	"VLX_ChatBridge/internal/core/config"
-	"VLX_ChatBridge/internal/modules/audiobridge/stream"
+	"VLX_ChatBridge/internal/modules/streaming"
 )
 
 func TestSRTEgressWithMixedAudio(t *testing.T) {
@@ -14,8 +14,8 @@ func TestSRTEgressWithMixedAudio(t *testing.T) {
 	cfg := &config.Config{}
 	outChan := make(chan []byte, 10)
 	inChan := make(chan audio.StreamData, 10)
-	mixer := stream.NewMixer("TestMixer", 100, true, inChan, outChan)
-	srtManager := stream.NewSRTManager(cfg, outChan)
+	mixer := audio.NewMixer("TestMixer", 100, true, inChan, outChan)
+	srtManager := streaming.NewSRTManager(cfg, outChan)
 
 	if err := mixer.Start(); err != nil {
 		t.Fatalf("Failed to start mixer: %v", err)

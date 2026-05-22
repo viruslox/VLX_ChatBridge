@@ -1,4 +1,4 @@
-package stream
+package audio
 
 import (
 	"bytes"
@@ -7,8 +7,6 @@ import (
 	"math"
 	"sync"
 	"time"
-
-	"VLX_ChatBridge/internal/core/audio"
 )
 
 const (
@@ -24,7 +22,7 @@ const (
 
 type Mixer struct {
 	name       string
-	inChan     <-chan audio.StreamData
+	inChan     <-chan StreamData
 	outChan    chan<- []byte
 	buffers    map[string]*bytes.Buffer
 	mu         sync.Mutex
@@ -36,7 +34,7 @@ type Mixer struct {
 	continuous bool
 }
 
-func NewMixer(name string, volume int, continuous bool, inChan <-chan audio.StreamData, outChan chan<- []byte) *Mixer {
+func NewMixer(name string, volume int, continuous bool, inChan <-chan StreamData, outChan chan<- []byte) *Mixer {
 	return &Mixer{
 		name:       name,
 		inChan:     inChan,
@@ -49,7 +47,7 @@ func NewMixer(name string, volume int, continuous bool, inChan <-chan audio.Stre
 }
 
 func (m *Mixer) Start() error {
-	log.Printf("[AudioBridge] Mixer (%s) starting...", m.name)
+	log.Printf("[Audio] Mixer (%s) starting...", m.name)
 
 	go m.readLoop()
 	go m.mixLoop()
@@ -68,7 +66,7 @@ func (m *Mixer) readLoop() {
 			m.buffers[streamData.ID].Write(streamData.Data)
 			m.mu.Unlock()
 		case <-m.stopChan:
-			log.Printf("[AudioBridge] Mixer (%s) stopped reading PCM data.", m.name)
+			log.Printf("[Audio] Mixer (%s) stopped reading PCM data.", m.name)
 			return
 		}
 	}
@@ -181,18 +179,18 @@ func (m *Mixer) mixLoop() {
 			select {
 			case m.outChan <- mixedChunk:
 			default:
-				log.Printf("[AudioBridge] Warning: Mixer (%s) output channel blocked, dropping chunk", m.name)
+				log.Printf("[Audio] Warning: Mixer (%s) output channel blocked, dropping chunk", m.name)
 			}
 
 		case <-m.stopChan:
-			log.Printf("[AudioBridge] Mixer (%s) stopped mixing loop.", m.name)
+			log.Printf("[Audio] Mixer (%s) stopped mixing loop.", m.name)
 			return
 		}
 	}
 }
 
 func (m *Mixer) Stop() error {
-	log.Printf("[AudioBridge] Mixer (%s) stopping...", m.name)
+	log.Printf("[Audio] Mixer (%s) stopping...", m.name)
 	m.stopOnce.Do(func() {
 		close(m.stopChan)
 	})

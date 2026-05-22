@@ -5,6 +5,7 @@ chatbridge_DIR: "/opt/VLX_ChatBridge"
 modules:
   chatflow_enabled: no
   audiobridge_enabled: no
+  streaming_enabled: no
 
 server:
   base_url: "https://your.ngrok.io"

@@ -1,4 +1,4 @@
-package stream
+package streaming
 
 import (
 	"log"
@@ -27,15 +27,15 @@ func NewAudioSourceManager(cfg *config.Config) *AudioSourceManager {
 }
 
 func (a *AudioSourceManager) Start() error {
-	log.Println("[AudioBridge] Audio Source manager starting...")
+	log.Println("[Streaming] Audio Source manager starting...")
 
 	if !a.cfg.AudioSource.Enable {
-		log.Println("[AudioBridge] Audio Source module is disabled. Audio Source manager will not start.")
+		log.Println("[Streaming] Audio Source module is disabled. Audio Source manager will not start.")
 		return nil
 	}
 
 	if a.cfg.AudioSource.URL == "" {
-		log.Println("[AudioBridge] Audio Source URL is empty. Audio Source manager will not start.")
+		log.Println("[Streaming] Audio Source URL is empty. Audio Source manager will not start.")
 		return nil
 	}
 
@@ -54,7 +54,7 @@ func (a *AudioSourceManager) runLoop() {
 
 		err := a.run()
 		if err != nil {
-			log.Printf("[AudioBridge] Audio Source FFmpeg error: %v. Restarting in 5s...", err)
+			log.Printf("[Streaming] Audio Source FFmpeg error: %v. Restarting in 5s...", err)
 			time.Sleep(5 * time.Second)
 		} else {
 			// Normal exit (e.g. stopped)
@@ -79,14 +79,14 @@ func (a *AudioSourceManager) run() error {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Printf("[AudioBridge] Failed to create stdout pipe for ffmpeg: %v", err)
+		log.Printf("[Streaming] Failed to create stdout pipe for ffmpeg: %v", err)
 		return err
 	}
 
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("[AudioBridge] Failed to start ffmpeg: %v", err)
+		log.Printf("[Streaming] Failed to start ffmpeg: %v", err)
 		return err
 	}
 
@@ -95,7 +95,7 @@ func (a *AudioSourceManager) run() error {
 		cmd.Wait()
 	}()
 
-	log.Printf("[AudioBridge] Ingesting Audio Source from %s", a.cfg.AudioSource.URL)
+	log.Printf("[Streaming] Ingesting Audio Source from %s", a.cfg.AudioSource.URL)
 
 	buf := make([]byte, 3840) // 20ms of 48kHz stereo 16-bit PCM (48000 * 2 * 2 * 0.02)
 	for {
@@ -132,7 +132,7 @@ func (a *AudioSourceManager) run() error {
 }
 
 func (a *AudioSourceManager) Stop() error {
-	log.Println("[AudioBridge] Audio Source manager stopping...")
+	log.Println("[Streaming] Audio Source manager stopping...")
 	a.stopOnce.Do(func() {
 		close(a.stopChan)
 		a.mu.Lock()
