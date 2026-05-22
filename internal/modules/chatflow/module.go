@@ -260,8 +260,6 @@ func (m *Module) serveTemplate(w http.ResponseWriter, filename string) {
 		vol = m.config.Overlay.Alerts.Volume
 	case "chat_overlay.html":
 		vol = m.config.Overlay.Chat.Volume
-	case "emotes_overlay.html":
-		vol = m.config.Overlay.Emotes.Volume
 	}
 
 	publicWsPath := path.Join(pathPrefix, websocketPath)
