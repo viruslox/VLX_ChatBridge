@@ -376,6 +376,10 @@ func TestScanAnnouncements_EdgeCases(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		if _, err := os.ReadFile(filePath); err == nil {
+			t.Skip("Skipping test as environment bypasses read restrictions")
+		}
+
 		// Attempting to read a file with restrictive permissions
 		cmds, err := ScanAnnouncements(tmpDir, logger)
 		if err != nil {
