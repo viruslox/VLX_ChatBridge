@@ -311,6 +311,7 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 		Type:      "sound_command",
 		Filename:  cmdData.Filename,
 		MediaType: cmdData.MediaType,
+		Command:   "!" + commandName,
 	}
 
 

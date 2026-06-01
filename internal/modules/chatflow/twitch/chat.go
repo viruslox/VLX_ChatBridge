@@ -76,6 +76,7 @@ type ChatAlertPayload struct {
 	Type      string `json:"type"`
 	Filename  string `json:"filename"`
 	MediaType string `json:"media_type"`
+	Command   string `json:"command,omitempty"`
 }
 
 type EmoteWallPayload struct {
@@ -495,6 +496,7 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 		Type:      "sound_command",
 		Filename:  lookup.cmdData.Filename,
 		MediaType: lookup.cmdData.MediaType,
+		Command:   "!" + commandName,
 	}
 
 
