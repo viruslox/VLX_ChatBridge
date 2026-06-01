@@ -73,10 +73,11 @@ func (c *ChatClient) UpdateCommands(cmds AudioCommandsMap, anns AnnouncementsMap
 
 // ChatAlertPayload defines the JSON sent to the overlay
 type ChatAlertPayload struct {
-	Type      string `json:"type"`
-	Filename  string `json:"filename"`
-	MediaType string `json:"media_type"`
-	Command   string `json:"command,omitempty"`
+	Type          string `json:"type"`
+	Filename      string `json:"filename"`
+	MediaType     string `json:"media_type"`
+	Command       string `json:"command,omitempty"`
+	IsBroadcaster bool   `json:"is_broadcaster,omitempty"`
 }
 
 type EmoteWallPayload struct {
@@ -492,11 +493,14 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 
 	c.logger.Info("Command triggered", zap.String("command", commandName), zap.String("user", message.User.Name))
 
+	_, isBroadcaster := message.User.Badges["broadcaster"]
+
 	payload := ChatAlertPayload{
-		Type:      "sound_command",
-		Filename:  lookup.cmdData.Filename,
-		MediaType: lookup.cmdData.MediaType,
-		Command:   "!" + commandName,
+		Type:          "sound_command",
+		Filename:      lookup.cmdData.Filename,
+		MediaType:     lookup.cmdData.MediaType,
+		Command:       "!" + commandName,
+		IsBroadcaster: isBroadcaster,
 	}
 
 

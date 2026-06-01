@@ -171,30 +171,42 @@ func (m *Module) controlWriterLoop() {
 			// Intercept specific commands to control VisionBridge
 			if eventType == "sound_command" {
 				if commandText, ok := innerPayload["command"].(string); ok {
-					switch commandText {
-					case "!cam1":
-						connectorEvent.Action = "set_input_state"
-						connectorEvent.Target = "layer1"
-						connectorEvent.Payload = map[string]interface{}{"enabled": true}
-						eventsToSend = append(eventsToSend, connectorEvent)
-					case "!cam2":
-						connectorEvent.Action = "set_input_state"
-						connectorEvent.Target = "layer2"
-						connectorEvent.Payload = map[string]interface{}{"enabled": true}
-						eventsToSend = append(eventsToSend, connectorEvent)
-					case "!hidecams":
-						event1 := connectorEvent
-						event1.Action = "set_input_state"
-						event1.Target = "layer1"
-						event1.Payload = map[string]interface{}{"enabled": false}
-						eventsToSend = append(eventsToSend, event1)
+					isBroadcaster := false
+					if isB, ok := innerPayload["is_broadcaster"].(bool); ok && isB {
+						isBroadcaster = true
+					}
 
-						event2 := connectorEvent
-						event2.EventID = uuid.New().String()
-						event2.Action = "set_input_state"
-						event2.Target = "layer2"
-						event2.Payload = map[string]interface{}{"enabled": false}
-						eventsToSend = append(eventsToSend, event2)
+					switch commandText {
+					case "!cam1", "!cam2", "!hidecams":
+						if isBroadcaster {
+							if commandText == "!cam1" {
+								connectorEvent.Action = "set_input_state"
+								connectorEvent.Target = "layer1"
+								connectorEvent.Payload = map[string]interface{}{"enabled": true}
+								eventsToSend = append(eventsToSend, connectorEvent)
+							} else if commandText == "!cam2" {
+								connectorEvent.Action = "set_input_state"
+								connectorEvent.Target = "layer2"
+								connectorEvent.Payload = map[string]interface{}{"enabled": true}
+								eventsToSend = append(eventsToSend, connectorEvent)
+							} else if commandText == "!hidecams" {
+								event1 := connectorEvent
+								event1.Action = "set_input_state"
+								event1.Target = "layer1"
+								event1.Payload = map[string]interface{}{"enabled": false}
+								eventsToSend = append(eventsToSend, event1)
+
+								event2 := connectorEvent
+								event2.EventID = uuid.New().String()
+								event2.Action = "set_input_state"
+								event2.Target = "layer2"
+								event2.Payload = map[string]interface{}{"enabled": false}
+								eventsToSend = append(eventsToSend, event2)
+							}
+						} else {
+							log.Printf("[Connector] Unauthorized scene change attempt by user for command: %s", commandText)
+							eventsToSend = append(eventsToSend, connectorEvent)
+						}
 					default:
 						eventsToSend = append(eventsToSend, connectorEvent)
 					}
