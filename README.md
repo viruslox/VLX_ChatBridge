@@ -8,7 +8,7 @@ This project is a merge of **VLX_ChatFlow** (OBS Alert Overlay System) and **VLX
 
 ## Unified Architecture
 
-ChatBridge operates as a single binary with five primary, independently configurable, hot-swappable modules sharing a unified core:
+ChatBridge operates as a single binary with six primary, independently configurable, hot-swappable modules sharing a unified core:
 
 1.  **ChatFlow Module (Event Management & Overlays):**
     *   Ingests events via Twitch EventSub Webhooks and YouTube API Polling.
@@ -24,9 +24,11 @@ ChatBridge operates as a single binary with five primary, independently configur
     *   Manages the egress of mixed audio to an SRT destination via FFmpeg.
 5.  **AudioSource Module (Audio Feed Ingest):**
     *   Ingests external audio feeds via FFmpeg and pipes them directly into the internal audio mixer.
+6.  **Connector Module (IPC Output):**
+    *   High-performance local Inter-Process Communication (IPC) via Unix Domain Sockets for streaming raw PCM audio and JSON control events to `VLX_VisionBridge`.
 
 ### Hot-Swappable Modules
-All five modules can be enabled or disabled on-the-fly via configuration (`modules` block), allowing the server to act solely as an alert system, an audio bridge, an SRT streamer, or a combination of them simultaneously.
+All six modules can be enabled or disabled on-the-fly via configuration (`modules` block), allowing the server to act solely as an alert system, an audio bridge, an SRT streamer, an IPC connector, or a combination of them simultaneously.
 
 ---
 
@@ -61,7 +63,8 @@ VLX_ChatBridge/
 │       ├── audiobridge/         # Logic for Discord bot
 │       ├── server/              # Logic for HTTP webserver and reverse proxy mapping
 │       ├── streaming/           # Logic for SRT output mixing via FFmpeg
-│       └── audiosource/         # Logic for external audio ingest
+│       ├── audiosource/         # Logic for external audio ingest
+│       └── connector/           # Logic for local IPC with VisionBridge
 ├── static/                      # Frontend folder (HTML/JS/CSS/Assets for OBS)
 │   └── chat/                    # Audio/Video assets storage for commands
 └── scripts/                     # Systemd service files
@@ -114,6 +117,7 @@ modules:
   server_enabled: yes
   streaming_enabled: yes
   audio_source_enabled: no
+  connector_enabled: no
 
 server:
   base_url: "https://your.ngrok.io"
@@ -164,6 +168,12 @@ audio_source:
   streaming: no
   volume: 80
   url: "srt://127.0.0.1:2020?..."
+
+connector:
+  ipc_audio_out: yes
+  ipc_control_out: yes
+  audio_socket: "/tmp/vlx_audio.sock"
+  control_socket: "/tmp/vlx_control.sock"
 ```
 
 ### Reverse Proxy Configuration
