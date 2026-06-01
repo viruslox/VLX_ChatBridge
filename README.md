@@ -74,7 +74,7 @@ VLX_ChatBridge/
 
 ## System Requirements
 *   **OS:** Linux (Tested on Debian)
-*   **Dependencies:** Go 1.21+, SQLite, FFmpeg
+*   **Dependencies:** Go 1.21+, SQLite, FFmpeg, libopus-dev, libopusfile-dev, pkg-config, cmake, clang, build-essential
 *   *Note: PortAudio and Chromium dependencies previously required by AudioBridge have been removed in favor of direct internal audio decoding.*
 
 ## Installation & Build
@@ -84,6 +84,7 @@ VLX_ChatBridge/
 mkdir -p ~/Projects/ ; cd ~/Projects/
 git clone https://github.com/disgoorg/godave.git
 cd godave/scripts ; export CC=/usr/bin/clang CXX=/usr/bin/clang
+export PKG_CONFIG_PATH="$HOME/.local/lib/pkgconfig:$PKG_CONFIG_PATH"
 ./libdave_install.sh v1.1.0
 ```
 
@@ -93,15 +94,12 @@ git clone https://github.com/viruslox/VLX_ChatBridge
 cd VLX_ChatBridge
 go mod init
 go mod tidy
-go build -o VLX_ChatBridge ./cmd/chatbridge
+./build.sh
 ```
 
 ### 3. Deploy
 ```bash
-sudo mkdir -p /opt/VLX_ChatBridge
-sudo chown -R $USER:$USER /opt/VLX_ChatBridge
-cp VLX_ChatBridge /opt/VLX_ChatBridge/
-cp config.yml /opt/VLX_ChatBridge/
+sudo ./VLX_ChatBridge install
 ```
 
 ---
