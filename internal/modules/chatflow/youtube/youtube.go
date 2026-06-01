@@ -308,10 +308,11 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 	c.logger.Info("YouTube Command Triggered", zap.String("command", commandName), zap.String("user", author.DisplayName))
 
 	payload := twitch.ChatAlertPayload{
-		Type:      "sound_command",
-		Filename:  cmdData.Filename,
-		MediaType: cmdData.MediaType,
-		Command:   "!" + commandName,
+		Type:          "sound_command",
+		Filename:      cmdData.Filename,
+		MediaType:     cmdData.MediaType,
+		Command:       "!" + commandName,
+		IsBroadcaster: author.IsChatOwner,
 	}
 
 
