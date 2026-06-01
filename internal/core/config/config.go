@@ -43,6 +43,7 @@ type Config struct {
 	Discord     DiscordConfig     `yaml:"discord"`
 	Streaming   StreamingConfig   `yaml:"streaming"`
 	AudioSource AudioSourceConfig `yaml:"audio_source"`
+	Connector   ConnectorConfig   `yaml:"connector"`
 }
 
 type ModulesConfig struct {
@@ -51,6 +52,7 @@ type ModulesConfig struct {
 	ServerEnabled      YesNoBool `yaml:"server_enabled"`
 	StreamingEnabled   YesNoBool `yaml:"streaming_enabled"`
 	AudioSourceEnabled YesNoBool `yaml:"audio_source_enabled"`
+	ConnectorEnabled   YesNoBool `yaml:"connector_enabled"`
 }
 
 type ServerConfig struct {
@@ -133,6 +135,13 @@ type AudioSourceConfig struct {
 	Streaming YesNoBool   `yaml:"streaming"`
 	Volume    int    `yaml:"volume"`
 	URL       string `yaml:"url"`
+}
+
+type ConnectorConfig struct {
+	IPCAudioOut   YesNoBool `yaml:"ipc_audio_out"`
+	IPCControlOut YesNoBool `yaml:"ipc_control_out"`
+	AudioSocket   string    `yaml:"audio_socket"`
+	ControlSocket string    `yaml:"control_socket"`
 }
 
 // LoadConfig reads and parses the configuration file at the given path.

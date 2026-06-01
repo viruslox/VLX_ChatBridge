@@ -10,6 +10,7 @@ modules:
   server_enabled: no
   streaming_enabled: no
   audio_source_enabled: no
+  connector_enabled: no
 
 # Modules dependency:
 # - discord -> audiobridge
@@ -93,3 +94,11 @@ audio_source:
   streaming: no
   volume: 80
   url: "srt://some.online.radio"
+
+# VLX Connector configuration (IPC locally for VisionBridge)
+connector:
+  # Requires connector_enabled: yes in modules block
+  ipc_audio_out: yes
+  ipc_control_out: yes
+  audio_socket: "/tmp/vlx_audio.sock"
+  control_socket: "/tmp/vlx_control.sock"

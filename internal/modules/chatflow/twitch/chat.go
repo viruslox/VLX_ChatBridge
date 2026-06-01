@@ -506,9 +506,10 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 		c.hub.BroadcastJSON(payload)
 	}
 
-	if streamingEnabled || discordEnabled {
+	connectorEnabled := bool(c.config.Modules.ConnectorEnabled) && bool(c.config.Connector.IPCAudioOut)
+	if streamingEnabled || discordEnabled || connectorEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", lookup.cmdData.Filename)
-		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled)
+		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled, connectorEnabled)
 	}
 }
 
