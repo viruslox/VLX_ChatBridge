@@ -155,7 +155,7 @@ func (m *Module) controlWriterLoop() {
 			}
 
 			// Determine action/target based on chatflow payload.
-			// Currently, chatflow sends "type" field (e.g. "chat_command", "alert", "emotes").
+			// Currently, chatflow sends "type" field (e.g. "sound_command", "alert", "emote_wall").
 			eventType, _ := innerPayload["type"].(string)
 
 			connectorEvent := ConnectorPayload{
@@ -166,20 +166,62 @@ func (m *Module) controlWriterLoop() {
 				Payload:   innerPayload,
 			}
 
-			outData, err := json.Marshal(connectorEvent)
-			if err != nil {
-				continue
+			var eventsToSend []ConnectorPayload
+
+			// Intercept specific commands to control VisionBridge
+			if eventType == "sound_command" {
+				if commandText, ok := innerPayload["command"].(string); ok {
+					switch commandText {
+					case "!cam1":
+						connectorEvent.Action = "set_input_state"
+						connectorEvent.Target = "layer1"
+						connectorEvent.Payload = map[string]interface{}{"enabled": true}
+						eventsToSend = append(eventsToSend, connectorEvent)
+					case "!cam2":
+						connectorEvent.Action = "set_input_state"
+						connectorEvent.Target = "layer2"
+						connectorEvent.Payload = map[string]interface{}{"enabled": true}
+						eventsToSend = append(eventsToSend, connectorEvent)
+					case "!hidecams":
+						event1 := connectorEvent
+						event1.Action = "set_input_state"
+						event1.Target = "layer1"
+						event1.Payload = map[string]interface{}{"enabled": false}
+						eventsToSend = append(eventsToSend, event1)
+
+						event2 := connectorEvent
+						event2.EventID = uuid.New().String()
+						event2.Action = "set_input_state"
+						event2.Target = "layer2"
+						event2.Payload = map[string]interface{}{"enabled": false}
+						eventsToSend = append(eventsToSend, event2)
+					default:
+						eventsToSend = append(eventsToSend, connectorEvent)
+					}
+				} else {
+					eventsToSend = append(eventsToSend, connectorEvent)
+				}
+			} else {
+				eventsToSend = append(eventsToSend, connectorEvent)
 			}
 
-			// Write to control socket, newline delimited json
-			outData = append(outData, '\n')
+			for _, ev := range eventsToSend {
+				outData, err := json.Marshal(ev)
+				if err != nil {
+					continue
+				}
 
-			conn.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
-			_, err = conn.Write(outData)
-			if err != nil {
-				// Reconnect next time
-				conn.Close()
-				conn = nil
+				// Write to control socket, newline delimited json
+				outData = append(outData, '\n')
+
+				conn.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+				_, err = conn.Write(outData)
+				if err != nil {
+					// Reconnect next time
+					conn.Close()
+					conn = nil
+					break // Break out of sending loop if connection drops
+				}
 			}
 		}
 	}
