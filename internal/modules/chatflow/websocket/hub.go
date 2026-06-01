@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 
+	"VLX_ChatBridge/internal/core/events"
 	"go.uber.org/zap"
 )
 
@@ -71,6 +72,12 @@ func (h *Hub) BroadcastJSON(payload interface{}) error {
 		h.logger.Error("Failed to marshal payload to JSON", zap.Error(err))
 		return err
 	}
+
+	select {
+	case events.ControlBroadcastChan <- data:
+	default:
+	}
+
 	h.Broadcast <- data
 	return nil
 }

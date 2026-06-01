@@ -322,9 +322,10 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 		c.hub.BroadcastJSON(payload)
 	}
 
-	if streamingEnabled || discordEnabled {
+	connectorEnabled := bool(c.config.Modules.ConnectorEnabled) && bool(c.config.Connector.IPCAudioOut)
+	if streamingEnabled || discordEnabled || connectorEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", cmdData.Filename)
-		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled)
+		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled, connectorEnabled)
 	}
 }
 
@@ -338,8 +339,9 @@ func (c *Client) broadcast(payload map[string]interface{}) {
 		c.hub.BroadcastJSON(payload)
 	}
 
-	if streamingEnabled || discordEnabled {
+	connectorEnabled := bool(c.config.Modules.ConnectorEnabled) && bool(c.config.Connector.IPCAudioOut)
+	if streamingEnabled || discordEnabled || connectorEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
-		go audio.PlayAlert("youtube_alert", fullPath, streamingEnabled, discordEnabled)
+		go audio.PlayAlert("youtube_alert", fullPath, streamingEnabled, discordEnabled, connectorEnabled)
 	}
 }

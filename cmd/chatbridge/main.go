@@ -14,6 +14,7 @@ import (
 	"VLX_ChatBridge/internal/modules/audiobridge"
 	"VLX_ChatBridge/internal/modules/audiosource"
 	"VLX_ChatBridge/internal/modules/chatflow"
+	"VLX_ChatBridge/internal/modules/connector"
 	"VLX_ChatBridge/internal/modules/server"
 	"VLX_ChatBridge/internal/modules/streaming"
 )
@@ -45,6 +46,7 @@ func main() {
 	log.Printf("Module Server: %v", cfg.Modules.ServerEnabled)
 	log.Printf("Module Streaming: %v", cfg.Modules.StreamingEnabled)
 	log.Printf("Module AudioSource: %v", cfg.Modules.AudioSourceEnabled)
+	log.Printf("Module Connector: %v", cfg.Modules.ConnectorEnabled)
 	log.Printf("Overlay Enable: %v", cfg.Overlay.Enable)
 	log.Printf("Overlay Emotes HTML: %v", cfg.Overlay.Emotes.HTML)
 	log.Printf("Overlay Alerts HTML: %v", cfg.Overlay.Alerts.HTML)
@@ -58,6 +60,10 @@ func main() {
 	log.Printf("AudioSource Enable: %v", cfg.AudioSource.Enable)
 	log.Printf("AudioSource Discord: %v", cfg.AudioSource.Discord)
 	log.Printf("AudioSource Streaming: %v", cfg.AudioSource.Streaming)
+	log.Printf("Connector IPC Audio Out: %v", cfg.Connector.IPCAudioOut)
+	log.Printf("Connector IPC Control Out: %v", cfg.Connector.IPCControlOut)
+	log.Printf("Connector Audio Socket: %s", cfg.Connector.AudioSocket)
+	log.Printf("Connector Control Socket: %s", cfg.Connector.ControlSocket)
 	log.Println("----------------------------------------")
 
 	// Initialize Module Manager
@@ -104,6 +110,14 @@ func main() {
 		manager.Register(asModule)
 	} else {
 		log.Println("AudioSource module is DISABLED.")
+	}
+
+	if cfg.Modules.ConnectorEnabled {
+		log.Println("Connector module is ENABLED. Registering Connector module...")
+		connModule := connector.NewModule(cfg, manager)
+		manager.Register(connModule)
+	} else {
+		log.Println("Connector module is DISABLED.")
 	}
 
 	// Start all registered modules

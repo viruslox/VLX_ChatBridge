@@ -11,7 +11,7 @@ import (
 
 // DecodeMediaToPCM uses FFmpeg to decode any media file to 48kHz stereo 16-bit PCM
 // and pushes it to the core PCM channel with the given routing flags.
-func DecodeMediaToPCM(id string, filePath string, routeSRT bool, routeDiscord bool) error {
+func DecodeMediaToPCM(id string, filePath string, routeSRT bool, routeDiscord bool, routeConnector bool) error {
 	// Setup FFmpeg command with options to ingest audio and decode to raw PCM
 	cmd := exec.Command("ffmpeg",
 		"-hide_banner", "-loglevel", "error",
@@ -47,6 +47,7 @@ func DecodeMediaToPCM(id string, filePath string, routeSRT bool, routeDiscord bo
 					Data:         chunk,
 					RouteSRT:     routeSRT,
 					RouteDiscord: routeDiscord,
+					RouteConnector: routeConnector,
 				}
 			}
 
@@ -65,15 +66,15 @@ func DecodeMediaToPCM(id string, filePath string, routeSRT bool, routeDiscord bo
 
 // DecodeMP3ToPCM is kept for backward compatibility and testing.
 func DecodeMP3ToPCM(filePath string) error {
-	return DecodeMediaToPCM("chatflow_decoder", filePath, true, false)
+	return DecodeMediaToPCM("chatflow_decoder", filePath, true, false, false)
 }
 
 // PlayAlert is a helper to decode a specific file with routing flags.
-func PlayAlert(id string, filePath string, routeSRT bool, routeDiscord bool) {
+func PlayAlert(id string, filePath string, routeSRT bool, routeDiscord bool, routeConnector bool) {
 	if filePath == "" {
 		return
 	}
-	err := DecodeMediaToPCM(id, filePath, routeSRT, routeDiscord)
+	err := DecodeMediaToPCM(id, filePath, routeSRT, routeDiscord, routeConnector)
 	if err != nil {
 		fmt.Printf("[ChatFlow/Audio] Failed to play alert %s: %v\n", filePath, err)
 	}
