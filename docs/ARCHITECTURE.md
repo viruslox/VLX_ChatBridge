@@ -1,7 +1,7 @@
 # VLX ChatBridge Architecture
 
 ## Overview
-VLX ChatBridge is a unified, self-hosted Go application designed to bridge streaming platform events (Twitch, YouTube) with Discord audio and video/audio overlays. It is structured around a centralized core that orchestrates five hot-swappable modules.
+VLX ChatBridge is a unified, self-hosted Go application designed to bridge streaming platform events (Twitch, YouTube) with Discord audio and video/audio overlays. It is structured around a centralized core that orchestrates six hot-swappable modules.
 
 ## Modules
 

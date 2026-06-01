@@ -2,6 +2,7 @@ package youtube
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 
 func TestProcessMessages(t *testing.T) {
 	// 1. Setup Hub to capture broadcasts
+	os.WriteFile("test.mp3", []byte("dummy"), 0644)
+	defer os.Remove("test.mp3")
 	logger := zap.NewNop()
 	hub := websocket.NewHub(logger)
 
@@ -104,6 +107,12 @@ func TestProcessMessages(t *testing.T) {
 }
 
 func TestHandleCommand(t *testing.T) {
+	os.WriteFile("test.mp3", []byte("dummy"), 0644)
+	defer os.Remove("test.mp3")
+	os.WriteFile("vip.mp3", []byte("dummy"), 0644)
+	defer os.Remove("vip.mp3")
+	os.WriteFile("sub.mp3", []byte("dummy"), 0644)
+	defer os.Remove("sub.mp3")
 	logger := zap.NewNop()
 	hub := websocket.NewHub(logger)
 
