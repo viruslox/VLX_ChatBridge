@@ -50,7 +50,7 @@ func (m *Module) Start() error {
 		log.Println("[Connector] Audio IPC Out is ENABLED")
 		m.audioOutChan = make(chan []byte, 1024)
 		// Volume is 100 for IPC out. Similar to SRT but we pipe to UDS.
-		m.connectorMixer = audio.NewMixer("Connector", 100, false, audio.ConnectorChannel, m.audioOutChan)
+		m.connectorMixer = audio.NewMixer("Connector", 100, true, audio.ConnectorChannel, m.audioOutChan)
 		if err := m.connectorMixer.Start(); err != nil {
 			log.Printf("[Connector] Mixer start error: %v", err)
 		}
