@@ -3,6 +3,8 @@
 ## Overview
 VLX ChatBridge is a unified, self-hosted Go application designed to bridge streaming platform events (Twitch, YouTube) with Discord audio and video/audio overlays. It is structured around a centralized core that orchestrates six hot-swappable modules.
 
+As part of **"The Holy Trinity"** architecture, ChatBridge acts as the central nervous system on the localhost. It is responsible for parsing chat commands and routing them dynamically via IPC/ZMQ to `VLX_VisionBridge` (for video mixing) and via HTTP Webhooks to `VLX_FrameFlow` (for IRL backpack control).
+
 ## Modules
 
 The system is composed of six primary, independently configurable modules. These are managed by a central `ModuleManager` (located in `internal/core/module`) that provides a `module.Controller` interface to handle asynchronous lifecycle events and hot-swapping without circular dependencies.
@@ -44,6 +46,14 @@ The system is composed of six primary, independently configurable modules. These
         *   Unix Domain Socket for audio (`/tmp/vlx_audio.sock`), taking raw PCM from the internal `audio.ConnectorChannel`.
         *   Unix Domain Socket for JSON control events (`/tmp/vlx_control.sock`), receiving events mapped from `events.ControlBroadcastChan`.
 
+## Pipeline Flow (ZMQ & Webhooks)
+
+The `ChatFlow` module implements a dynamic file-based routing mechanism. When text files are dropped into `static/chat/`, the module parses them to generate commands.
+*   If a file contains a `[ZMQ_CONTROL]` block, the event is tagged as an `ipc_control` payload.
+*   If a file contains a `[WEBHOOK]` block, it triggers an asynchronous HTTP POST request to the specified endpoint.
+
+These control commands are routed asynchronously to the globally accessible `events.ControlBroadcastChan`, ensuring the chat processing loop is never blocked. The `Connector` module intercepts these broadcasts to handle downstream IPC execution.
+
 ## Audio Architecture
 
 The audio system replaces traditional headless browser capture with direct internal audio decoding and mixing.
@@ -51,6 +61,7 @@ The audio system replaces traditional headless browser capture with direct inter
 *   **Decoding:** Media files triggered by alerts or chat commands are decoded by FFmpeg (via `os/exec` in `audio.DecodeMediaToPCM`) into 48kHz stereo 16-bit PCM.
 *   **Routing:** Audio is initially sent to a shared singleton `PCMChannel` (`chan StreamData`). A central router (`internal/core/audio/pipe.go`) fans out this data to specific channels (`SRTChannel`, `DiscordChannel`, and `ConnectorChannel`) based on configuration flags (`RouteSRT`, `RouteDiscord`, and `RouteConnector`).
 *   **Mixing:** Independent `audio.Mixer` instances handle mixing for different outputs (e.g., SRT, Discord, Connector). This separation prevents issues like echoing a Discord participant's audio back to them. The mixer tracks multiple streams by ID, applying dynamic equal-power volume balancing and envelope-based noise gating.
+*   **Audio IPC Pipeline:** The `Connector` module plays a critical role in the "Holy Trinity" by pushing raw PCM audio directly to the audio socket (e.g., `/tmp/vlx_audio.sock`). This enables zero-latency lip-sync processing in `VLX_VisionBridge`.
 
 ## Database
 
