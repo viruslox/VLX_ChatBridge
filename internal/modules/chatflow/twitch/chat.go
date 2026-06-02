@@ -2,6 +2,7 @@ package twitch
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/core/events"
 	"VLX_ChatBridge/internal/modules/chatflow/audio"
 	"VLX_ChatBridge/internal/modules/chatflow/websocket"
 
@@ -28,9 +30,12 @@ const (
 
 // CommandData holds metadata for media commands
 type CommandData struct {
-	Filename   string
-	Permission string
-	MediaType  string // "audio" or "video"
+	Filename          string
+	Permission        string
+	MediaType         string // "audio", "video", or "ipc_control"
+	IsBroadcasterOnly bool
+	ZMQTarget         string
+	ZMQEnabled        bool
 }
 
 type AudioCommandsMap map[string]CommandData
@@ -136,12 +141,43 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 		ext := strings.ToLower(filepath.Ext(filename))
 		commandName := strings.ToLower(strings.TrimSuffix(filename, ext))
 
+		isBroadcasterOnly := false
+		if strings.HasPrefix(commandName, "owner_") {
+			isBroadcasterOnly = true
+			commandName = strings.TrimPrefix(commandName, "owner_")
+		}
+
 		var mediaType string
+		var zmqTarget string
+		var zmqEnabled bool
+
 		switch ext {
 		case ".mp3", ".wav", ".ogg":
 			mediaType = "audio"
 		case ".mp4", ".webm":
 			mediaType = "video"
+		case ".txt":
+			contentBytes, err := os.ReadFile(filepath.Join(fullPath, filename))
+			if err != nil {
+				logger.Warn("Failed to read text command file", zap.String("filename", filename), zap.Error(err))
+				continue
+			}
+			content := string(contentBytes)
+			if strings.Contains(content, "[ZMQ_CONTROL]") {
+				mediaType = "ipc_control"
+				lines := strings.Split(content, "\n")
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "Target=") {
+						zmqTarget = strings.TrimPrefix(line, "Target=")
+					} else if strings.HasPrefix(line, "Enabled=") {
+						val := strings.ToLower(strings.TrimPrefix(line, "Enabled="))
+						zmqEnabled = (val == "true" || val == "yes" || val == "1")
+					}
+				}
+			} else {
+				continue
+			}
 		default:
 			continue
 		}
@@ -152,9 +188,12 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 			logger.Warn("Duplicate command detected, skipping", zap.String("command", commandName), zap.String("path", relativePath))
 		} else {
 			commands[commandName] = CommandData{
-				Filename:   relativePath,
-				Permission: permission,
-				MediaType:  mediaType,
+				Filename:          relativePath,
+				Permission:        permission,
+				MediaType:         mediaType,
+				IsBroadcasterOnly: isBroadcasterOnly,
+				ZMQTarget:         zmqTarget,
+				ZMQEnabled:        zmqEnabled,
 			}
 		}
 	}
@@ -478,6 +517,13 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 		return
 	}
 
+	_, isBroadcaster := message.User.Badges["broadcaster"]
+
+	if lookup.cmdData.IsBroadcasterOnly && !isBroadcaster {
+		c.logger.Warn("Unauthorized access attempt to owner command", zap.String("command", commandName), zap.String("user", message.User.Name))
+		return
+	}
+
 	// --- COOLDOWN CHECK ---
 	if lookup.ok {
 		if time.Since(lookup.lastUsed) < c.cooldownDuration {
@@ -493,7 +539,28 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 
 	c.logger.Info("Command triggered", zap.String("command", commandName), zap.String("user", message.User.Name))
 
-	_, isBroadcaster := message.User.Badges["broadcaster"]
+	if lookup.cmdData.MediaType == "ipc_control" {
+		payload := map[string]interface{}{
+			"type":           "ipc_control",
+			"command":        "!" + commandName,
+			"is_broadcaster": isBroadcaster,
+			"target":         lookup.cmdData.ZMQTarget,
+			"enabled":        lookup.cmdData.ZMQEnabled,
+		}
+		c.hub.BroadcastJSON(payload)
+
+		// If control event, broadcast it globally as well
+		outData, err := json.Marshal(payload)
+		if err == nil {
+			// This makes it available to the connector module natively
+			select {
+			case events.ControlBroadcastChan <- outData:
+			default:
+			}
+		}
+
+		return
+	}
 
 	payload := ChatAlertPayload{
 		Type:          "sound_command",
