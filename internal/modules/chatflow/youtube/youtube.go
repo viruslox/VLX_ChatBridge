@@ -3,11 +3,13 @@ package youtube
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/core/events"
 	"VLX_ChatBridge/internal/modules/chatflow/audio"
 	"path/filepath"
 	"VLX_ChatBridge/internal/modules/chatflow/database"
@@ -305,7 +307,32 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 		return
 	}
 
+	if cmdData.IsBroadcasterOnly && !author.IsChatOwner {
+		c.logger.Warn("Unauthorized access attempt to owner command", zap.String("command", commandName), zap.String("user", author.DisplayName))
+		return
+	}
+
 	c.logger.Info("YouTube Command Triggered", zap.String("command", commandName), zap.String("user", author.DisplayName))
+
+	if cmdData.MediaType == "ipc_control" {
+		payload := map[string]interface{}{
+			"type":           "ipc_control",
+			"command":        "!" + commandName,
+			"is_broadcaster": author.IsChatOwner,
+			"target":         cmdData.ZMQTarget,
+			"enabled":        cmdData.ZMQEnabled,
+		}
+		c.hub.BroadcastJSON(payload)
+
+		outData, err := json.Marshal(payload)
+		if err == nil {
+			select {
+			case events.ControlBroadcastChan <- outData:
+			default:
+			}
+		}
+		return
+	}
 
 	payload := twitch.ChatAlertPayload{
 		Type:          "sound_command",

@@ -169,51 +169,17 @@ func (m *Module) controlWriterLoop() {
 			var eventsToSend []ConnectorPayload
 
 			// Intercept specific commands to control VisionBridge
-			if eventType == "sound_command" {
-				if commandText, ok := innerPayload["command"].(string); ok {
-					isBroadcaster := false
-					if isB, ok := innerPayload["is_broadcaster"].(bool); ok && isB {
-						isBroadcaster = true
-					}
+			if eventType == "ipc_control" {
+				// Parse dynamic IPC payload from ChatFlow
+				target, _ := innerPayload["target"].(string)
+				enabled, _ := innerPayload["enabled"].(bool)
 
-					switch commandText {
-					case "!cam1", "!cam2", "!hidecams":
-						if isBroadcaster {
-							if commandText == "!cam1" {
-								connectorEvent.Action = "set_input_state"
-								connectorEvent.Target = "layer1"
-								connectorEvent.Payload = map[string]interface{}{"enabled": true}
-								eventsToSend = append(eventsToSend, connectorEvent)
-							} else if commandText == "!cam2" {
-								connectorEvent.Action = "set_input_state"
-								connectorEvent.Target = "layer2"
-								connectorEvent.Payload = map[string]interface{}{"enabled": true}
-								eventsToSend = append(eventsToSend, connectorEvent)
-							} else if commandText == "!hidecams" {
-								event1 := connectorEvent
-								event1.Action = "set_input_state"
-								event1.Target = "layer1"
-								event1.Payload = map[string]interface{}{"enabled": false}
-								eventsToSend = append(eventsToSend, event1)
-
-								event2 := connectorEvent
-								event2.EventID = uuid.New().String()
-								event2.Action = "set_input_state"
-								event2.Target = "layer2"
-								event2.Payload = map[string]interface{}{"enabled": false}
-								eventsToSend = append(eventsToSend, event2)
-							}
-						} else {
-							log.Printf("[Connector] Unauthorized scene change attempt by user for command: %s", commandText)
-							eventsToSend = append(eventsToSend, connectorEvent)
-						}
-					default:
-						eventsToSend = append(eventsToSend, connectorEvent)
-					}
-				} else {
-					eventsToSend = append(eventsToSend, connectorEvent)
-				}
+				connectorEvent.Action = "set_input_state"
+				connectorEvent.Target = target
+				connectorEvent.Payload = map[string]interface{}{"enabled": enabled}
+				eventsToSend = append(eventsToSend, connectorEvent)
 			} else {
+				// For non-control events, just pass through as trigger_event
 				eventsToSend = append(eventsToSend, connectorEvent)
 			}
 
