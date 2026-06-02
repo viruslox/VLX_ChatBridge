@@ -3,6 +3,7 @@ package twitch
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -32,10 +33,12 @@ const (
 type CommandData struct {
 	Filename          string
 	Permission        string
-	MediaType         string // "audio", "video", or "ipc_control"
+	MediaType         string // "audio", "video", "ipc_control", or "webhook"
 	IsBroadcasterOnly bool
 	ZMQTarget         string
 	ZMQEnabled        bool
+	WebhookURL        string
+	WebhookMethod     string
 }
 
 type AudioCommandsMap map[string]CommandData
@@ -150,6 +153,8 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 		var mediaType string
 		var zmqTarget string
 		var zmqEnabled bool
+		var webhookURL string
+		var webhookMethod string
 
 		switch ext {
 		case ".mp3", ".wav", ".ogg":
@@ -175,6 +180,17 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 						zmqEnabled = (val == "true" || val == "yes" || val == "1")
 					}
 				}
+			} else if strings.Contains(content, "[WEBHOOK]") {
+				mediaType = "webhook"
+				lines := strings.Split(content, "\n")
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "Method=") {
+						webhookMethod = strings.TrimPrefix(line, "Method=")
+					} else if strings.HasPrefix(line, "URL=") {
+						webhookURL = strings.TrimPrefix(line, "URL=")
+					}
+				}
 			} else {
 				continue
 			}
@@ -194,6 +210,8 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 				IsBroadcasterOnly: isBroadcasterOnly,
 				ZMQTarget:         zmqTarget,
 				ZMQEnabled:        zmqEnabled,
+				WebhookURL:        webhookURL,
+				WebhookMethod:     webhookMethod,
 			}
 		}
 	}
@@ -559,6 +577,25 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 			}
 		}
 
+		return
+	}
+
+	if lookup.cmdData.MediaType == "webhook" {
+		go func() {
+			req, err := http.NewRequest(lookup.cmdData.WebhookMethod, lookup.cmdData.WebhookURL, nil)
+			if err != nil {
+				c.logger.Error("Failed to create webhook request", zap.String("command", commandName), zap.Error(err))
+				return
+			}
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				c.logger.Error("Failed to execute webhook", zap.String("command", commandName), zap.Error(err))
+				return
+			}
+			defer resp.Body.Close()
+			c.logger.Info("Webhook fired", zap.String("command", commandName))
+		}()
 		return
 	}
 
