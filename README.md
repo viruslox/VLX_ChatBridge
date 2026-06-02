@@ -40,12 +40,7 @@ All six modules can be enabled or disabled on-the-fly via configuration (`module
 *   **Overlays:** Alerts overlay, Chat Media overlay, and Emote Wall.
 *   **Smart Rate Limiting & Persistence:** Token buckets for API quotas and SQLite for state/token management.
 *   **Dynamic Command Generation:** File-based chat commands generation by dropping files in corresponding permission folders (`everyone`, `subscribers`, `vips`). Use the `owner_` prefix to enforce strict broadcaster-only access control.
-*   **ZMQ IPC Scene Control:** Create `.txt` files containing `[ZMQ_CONTROL]` alongside `Target=` and `Enabled=` to dynamically control VisionBridge scenes/layers directly from chat commands.
-    ```ini
-    [ZMQ_CONTROL]
-    Target=layer10
-    Enabled=true
-    ```
+*   **Dynamic File-Based Routing (ZMQ & Webhooks):** As part of **"The Holy Trinity"** architecture, ChatBridge acts as the central nervous system. It receives chat commands and routes them instantly via IPC/ZMQ to `VLX_VisionBridge` (for zero-latency video mixing) and via HTTP Webhooks to `VLX_FrameFlow` (for IRL backpack control).
 
 ### AudioBridge Features
 *   **Discord Ingress/Egress:** Joins voice channels, captures Opus packets (libdave/godave support), and injects internal audio.
@@ -197,6 +192,27 @@ ProxyPassReverse /<path_prefix>/ http://localhost:8000/
 ---
 
 ## Usage
+
+### Dynamic Control Files Guide (ZMQ & Webhooks)
+
+ChatBridge parses text files dropped into `static/chat/` to generate commands on the fly. By adding special blocks to these files, you can trigger routing to VisionBridge or FrameFlow.
+
+**1. ZMQ Control Example (VisionBridge)**
+Create a file at `static/chat/owner_cam1.txt` to trigger a scene change in VLX_VisionBridge via local IPC. The `owner_` prefix ensures only the broadcaster can run `!cam1`.
+```ini
+[ZMQ_CONTROL]
+Target=cam1
+Enabled=true
+```
+
+**2. Webhook Control Example (FrameFlow)**
+Create a file at `static/chat/owner_bitrate.txt` to send an HTTP POST request to VLX_FrameFlow running on the local backpack.
+```ini
+[WEBHOOK]
+Method=POST
+URL=http://127.0.0.1:8080/api/bitrate
+Body={"action": "increase"}
+```
 
 ### Running Manually
 ```bash
