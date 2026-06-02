@@ -19,9 +19,10 @@ function connect() {
         try {
             const data = JSON.parse(event.data);
             
-            if (data.type === 'chat_command' && data.command === '!sigla') {
-
-                playVideo("/static/scene/sigla.mp4"); 
+            // CORREZIONE: Intercetta sound_command, non chat_command
+            if (data.type === 'sound_command' && data.command === '!sigla') {
+                // CORREZIONE: Carica il video in base al filename inviato dal server
+                playVideo("/static/chat/" + data.filename); 
             }
         } catch (err) {
             console.error("[Scene Overlay] Parsing error:", err);
