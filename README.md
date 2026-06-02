@@ -41,6 +41,11 @@ All six modules can be enabled or disabled on-the-fly via configuration (`module
 *   **Smart Rate Limiting & Persistence:** Token buckets for API quotas and SQLite for state/token management.
 *   **Dynamic Command Generation:** File-based chat commands generation by dropping files in corresponding permission folders (`everyone`, `subscribers`, `vips`). Use the `owner_` prefix to enforce strict broadcaster-only access control.
 *   **ZMQ IPC Scene Control:** Create `.txt` files containing `[ZMQ_CONTROL]` alongside `Target=` and `Enabled=` to dynamically control VisionBridge scenes/layers directly from chat commands.
+    ```ini
+    [ZMQ_CONTROL]
+    Target=layer10
+    Enabled=true
+    ```
 
 ### AudioBridge Features
 *   **Discord Ingress/Egress:** Joins voice channels, captures Opus packets (libdave/godave support), and injects internal audio.
