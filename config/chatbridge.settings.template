@@ -33,6 +33,8 @@ server:
 # Recommended to use 2 different accounts, or at least 2 difrerent tokens
 # You can create token with https://twitchtokengenerator.com/
 twitch:
+  # client_id is required. For the AutoDelete feature to work via the Helix API,
+  # the associated bot token must include the 'moderator:manage:chat_messages' OAuth scope.
   client_id: ""
   client_secret: ""
   webhook_secret: ""
@@ -97,6 +99,7 @@ audio_source:
 
 # VLX Connector configuration (IPC locally for VisionBridge)
 # Enables Zero-Latency IPC routing to VLX_VisionBridge for both raw PCM audio and JSON control commands.
+# This explicitly enables the IPC ZeroMQ routing to VisionBridge.
 connector:
   # Requires connector_enabled: yes in modules block
   ipc_audio_out: yes

@@ -193,7 +193,7 @@ ProxyPassReverse /<path_prefix>/ http://localhost:8000/
 
 ## Usage
 
-### Dynamic Control Files Guide (ZMQ & Webhooks)
+### Dynamic File-Based Routing
 
 ChatBridge parses text files dropped into `static/chat/` to generate commands on the fly. By adding special blocks to these files, you can trigger routing to VisionBridge or FrameFlow.
 
@@ -201,7 +201,7 @@ ChatBridge parses text files dropped into `static/chat/` to generate commands on
 Create a file at `static/chat/owner_cam1.txt` to trigger a scene change in VLX_VisionBridge via local IPC. The `owner_` prefix ensures only the broadcaster can run `!cam1`.
 ```ini
 [ZMQ_CONTROL]
-Target=cam1
+Target=stream
 Enabled=true
 ```
 
@@ -210,8 +210,19 @@ Create a file at `static/chat/owner_bitrate.txt` to send an HTTP POST request to
 ```ini
 [WEBHOOK]
 Method=POST
-URL=http://127.0.0.1:8080/api/bitrate
+URL=http://127.0.0.1:8080/api/frameflow/bitrate
 Body={"action": "increase"}
+```
+
+#### Stealth Mode (AutoDelete)
+Both `[ZMQ_CONTROL]` and `[WEBHOOK]` files support an `AutoDelete=true` flag. This feature allows you to silently execute commands without cluttering the public chat. When enabled, it leverages dynamically refreshed DB tokens and the Twitch Helix API to instantly delete the invoking chat message.
+
+Example with Stealth Mode:
+```ini
+[ZMQ_CONTROL]
+Target=stream
+Enabled=true
+AutoDelete=true
 ```
 
 ### Running Manually
