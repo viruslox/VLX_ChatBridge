@@ -16,6 +16,7 @@ import (
 	"VLX_ChatBridge/internal/core/config"
 	"VLX_ChatBridge/internal/core/events"
 	"VLX_ChatBridge/internal/modules/chatflow/audio"
+	"VLX_ChatBridge/internal/modules/chatflow/database"
 	"VLX_ChatBridge/internal/modules/chatflow/websocket"
 
 	"github.com/gempir/go-twitch-irc/v4"
@@ -58,6 +59,7 @@ type AnnouncementsMap map[string]AnnouncementData
 type ChatClient struct {
 	mu               sync.RWMutex
 	config           *config.Config
+	db               *database.DB
 	hub              *websocket.Hub
 	client           *twitch.Client
 	commands         AudioCommandsMap
@@ -96,7 +98,7 @@ type EmoteWallPayload struct {
 }
 
 // NewChatClient initializes the ChatClient with dependencies and rate limiters.
-func NewChatClient(cfg *config.Config, hub *websocket.Hub, commands AudioCommandsMap, announcements AnnouncementsMap, logger *zap.Logger) *ChatClient {
+func NewChatClient(cfg *config.Config, hub *websocket.Hub, db *database.DB, commands AudioCommandsMap, announcements AnnouncementsMap, logger *zap.Logger) *ChatClient {
 	// Set default cooldown if invalid
 	cd := cfg.Twitch.Chat.CommandCooldown
 	if cd <= 0 {
@@ -110,6 +112,7 @@ func NewChatClient(cfg *config.Config, hub *websocket.Hub, commands AudioCommand
 
 	client := &ChatClient{
 		config:           cfg,
+		db:               db,
 		hub:              hub,
 		commands:         commands,
 		announcements:    announcements,
@@ -580,7 +583,14 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 				return
 			}
 
-			req.Header.Set("Authorization", "Bearer "+c.config.Twitch.Chat.BotToken)
+			authToken := c.config.Twitch.Chat.BotToken
+			creds, dbErr := c.db.GetTwitchCredentials(message.RoomID)
+			if dbErr == nil && creds != nil && creds.AccessToken != "" {
+				authToken = creds.AccessToken
+			}
+			authToken = strings.TrimPrefix(authToken, "oauth:")
+
+			req.Header.Set("Authorization", "Bearer "+authToken)
 			req.Header.Set("Client-Id", c.config.Twitch.ClientID)
 
 			resp, err := http.DefaultClient.Do(req)
