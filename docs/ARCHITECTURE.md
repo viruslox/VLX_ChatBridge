@@ -48,9 +48,11 @@ The system is composed of six primary, independently configurable modules. These
 
 ## Pipeline Flow (ZMQ & Webhooks)
 
-The `ChatFlow` module implements a dynamic file-based routing mechanism. When text files are dropped into `static/chat/`, the module parses them to generate commands.
+The `ChatFlow` module implements a dynamic file-based routing mechanism. When text files are dropped into `static/chat/`, the module parses them to generate commands. The file parser employs a robust concurrency model to handle these updates efficiently. It scans the command directories synchronously to build an updated command map, and then safely swaps this map at runtime. Accesses to the current commands are protected by `sync.RWMutex` locks, allowing for safe hot-reloading without interrupting ongoing operations.
+
 *   If a file contains a `[ZMQ_CONTROL]` block, the event is tagged as an `ipc_control` payload.
 *   If a file contains a `[WEBHOOK]` block, it triggers an asynchronous HTTP POST request to the specified endpoint.
+*   For commands utilizing the `AutoDelete` flag, the `ChatFlow` module executes a Helix API request. It securely injects the necessary Helix API token fetched from the SQLite database (`GetTwitchCredentials`) to survive OAuth expirations, and gracefully falls back to the static config token only if the database lookup fails or returns no valid token.
 
 These control commands are routed asynchronously to the globally accessible `events.ControlBroadcastChan`, ensuring the chat processing loop is never blocked. The `Connector` module intercepts these broadcasts to handle downstream IPC execution.
 
@@ -61,7 +63,7 @@ The audio system replaces traditional headless browser capture with direct inter
 *   **Decoding:** Media files triggered by alerts or chat commands are decoded by FFmpeg (via `os/exec` in `audio.DecodeMediaToPCM`) into 48kHz stereo 16-bit PCM.
 *   **Routing:** Audio is initially sent to a shared singleton `PCMChannel` (`chan StreamData`). A central router (`internal/core/audio/pipe.go`) fans out this data to specific channels (`SRTChannel`, `DiscordChannel`, and `ConnectorChannel`) based on configuration flags (`RouteSRT`, `RouteDiscord`, and `RouteConnector`).
 *   **Mixing:** Independent `audio.Mixer` instances handle mixing for different outputs (e.g., SRT, Discord, Connector). This separation prevents issues like echoing a Discord participant's audio back to them. The mixer tracks multiple streams by ID, applying dynamic equal-power volume balancing and envelope-based noise gating.
-*   **Audio IPC Pipeline:** The `Connector` module plays a critical role in the "Holy Trinity" by pushing raw PCM audio directly to the audio socket (e.g., `/tmp/vlx_audio.sock`). This enables zero-latency lip-sync processing in `VLX_VisionBridge`.
+*   **Audio IPC Pipeline:** The `Connector` module plays a critical role in the "Holy Trinity" by pushing raw PCM audio directly to the audio Unix domain socket (e.g., `/tmp/vlx_audio.sock`). By bypassing intermediate network layers, this direct pipeline ensures extremely low-latency delivery of the audio stream, enabling precise, zero-latency lip-sync processing in `VLX_VisionBridge`.
 
 ## Database
 
