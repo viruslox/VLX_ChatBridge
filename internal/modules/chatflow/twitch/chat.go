@@ -3,6 +3,7 @@ package twitch
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -39,6 +40,7 @@ type CommandData struct {
 	ZMQEnabled        bool
 	WebhookURL        string
 	WebhookMethod     string
+	AutoDelete        bool
 }
 
 type AudioCommandsMap map[string]CommandData
@@ -155,6 +157,7 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 		var zmqEnabled bool
 		var webhookURL string
 		var webhookMethod string
+		var autoDelete bool
 
 		switch ext {
 		case ".mp3", ".wav", ".ogg":
@@ -178,6 +181,11 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 					} else if strings.HasPrefix(line, "Enabled=") {
 						val := strings.ToLower(strings.TrimPrefix(line, "Enabled="))
 						zmqEnabled = (val == "true" || val == "yes" || val == "1")
+					} else if strings.HasPrefix(line, "AutoDelete=") {
+						val := strings.ToLower(strings.TrimPrefix(line, "AutoDelete="))
+						if val == "true" {
+							autoDelete = true
+						}
 					}
 				}
 			} else if strings.Contains(content, "[WEBHOOK]") {
@@ -189,6 +197,11 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 						webhookMethod = strings.TrimPrefix(line, "Method=")
 					} else if strings.HasPrefix(line, "URL=") {
 						webhookURL = strings.TrimPrefix(line, "URL=")
+					} else if strings.HasPrefix(line, "AutoDelete=") {
+						val := strings.ToLower(strings.TrimPrefix(line, "AutoDelete="))
+						if val == "true" {
+							autoDelete = true
+						}
 					}
 				}
 			} else {
@@ -212,6 +225,7 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 				ZMQEnabled:        zmqEnabled,
 				WebhookURL:        webhookURL,
 				WebhookMethod:     webhookMethod,
+				AutoDelete:        autoDelete,
 			}
 		}
 	}
@@ -556,6 +570,31 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 	// ----------------------
 
 	c.logger.Info("Command triggered", zap.String("command", commandName), zap.String("user", message.User.Name))
+
+	if lookup.cmdData.AutoDelete {
+		go func() {
+			reqURL := fmt.Sprintf("https://api.twitch.tv/helix/moderation/chat?broadcaster_id=%s&moderator_id=%s&message_id=%s", message.RoomID, message.RoomID, message.ID)
+			req, err := http.NewRequest(http.MethodDelete, reqURL, nil)
+			if err != nil {
+				c.logger.Error("Failed to create delete message request", zap.String("command", commandName), zap.Error(err))
+				return
+			}
+
+			req.Header.Set("Authorization", "Bearer "+c.config.Twitch.Chat.BotToken)
+			req.Header.Set("Client-Id", c.config.Twitch.ClientID)
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				c.logger.Error("Failed to execute delete message request", zap.String("command", commandName), zap.Error(err))
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode >= 400 {
+				c.logger.Error("Twitch API error on delete message", zap.String("command", commandName), zap.Int("status", resp.StatusCode))
+			}
+		}()
+	}
 
 	if lookup.cmdData.MediaType == "ipc_control" {
 		payload := map[string]interface{}{
