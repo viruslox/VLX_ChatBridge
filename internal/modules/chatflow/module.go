@@ -138,7 +138,7 @@ func (m *Module) Start() error {
 
 	var chatClient *twitch.ChatClient
 	if cmdMap != nil && (m.config.Twitch.Chat.BotUsername != "" || m.config.Twitch.Chat.ChannelToJoin != "" || m.config.Twitch.ChannelName != "") {
-		chatClient = twitch.NewChatClient(m.config, hub, cmdMap, announcementsMap, logger)
+		chatClient = twitch.NewChatClient(m.config, hub, m.db, cmdMap, announcementsMap, logger)
 		chatClient.Start()
 	}
 	m.chatClient = chatClient
