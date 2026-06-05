@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLX GPS Overlay</title>
+    <script>
+        window.VLX_CONFIG = {
+            WEBSOCKET_PATH: "{{.WebsocketPath}}",
+            ASSET_PREFIX: "{{.AssetPrefix}}",
+            VOLUME: {{.Volume}}
+        };
+    </script>
+    <link rel="stylesheet" href="{{.AssetPrefix}}/static/overlay.css">
+    <style>
+        #gps-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-family: sans-serif;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .gps-row {
+            display: flex;
+            justify-content: space-between;
+            min-width: 150px;
+        }
+        .gps-label {
+            font-weight: bold;
+            margin-right: 15px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div id="gps-container">
+        <div class="gps-row">
+            <span class="gps-label">SPEED:</span>
+            <span id="gps-speed">0 km/h</span>
+        </div>
+        <div class="gps-row">
+            <span class="gps-label">LAT:</span>
+            <span id="gps-lat">0.0000</span>
+        </div>
+        <div class="gps-row">
+            <span class="gps-label">LON:</span>
+            <span id="gps-lon">0.0000</span>
+        </div>
+        <div class="gps-row">
+            <span class="gps-label">ALT:</span>
+            <span id="gps-alt">0 m</span>
+        </div>
+    </div>
+    <script src="{{.AssetPrefix}}/static/gps_overlay.js"></script>
+</body>
+</html>

@@ -89,6 +89,9 @@ func (m *Module) Start() error {
 	m.mux.HandleFunc("/static/emotes_overlay.html", func(w http.ResponseWriter, r *http.Request) {
 		m.serveTemplate(w, "emotes_overlay.html")
 	})
+	m.mux.HandleFunc("/static/gps_overlay.html", func(w http.ResponseWriter, r *http.Request) {
+		m.serveTemplate(w, "gps_overlay.html")
+	})
 
 	// Static file server for overlays
 	baseDir := m.config.ChatBridgeDIR
