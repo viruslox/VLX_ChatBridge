@@ -29,6 +29,7 @@ const (
 	PermissionEveryone   = "everyone"   // Public/Followers
 	PermissionSubscriber = "subscriber" // Paid Subscribers
 	PermissionVIP        = "vip"        // VIP/Mods
+	PermissionOwner      = "owner"      // Broadcaster Only
 )
 
 // CommandData holds metadata for media commands
@@ -153,6 +154,9 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 		if strings.HasPrefix(commandName, "owner_") {
 			isBroadcasterOnly = true
 			commandName = strings.TrimPrefix(commandName, "owner_")
+		}
+		if permission == PermissionOwner {
+			isBroadcasterOnly = true
 		}
 
 		var mediaType string
@@ -308,6 +312,7 @@ func ScanAudioCommands(baseDir string, logger *zap.Logger) (AudioCommandsMap, er
 		"everyone":    PermissionEveryone,
 		"subscribers": PermissionSubscriber,
 		"vips":        PermissionVIP,
+		"owner":       PermissionOwner,
 	}
 
 	for folderName, permission := range folders {
@@ -749,6 +754,9 @@ func (c *ChatClient) hasPermission(user twitch.User, requiredLevel string) bool 
 	}
 
 	switch requiredLevel {
+	case PermissionOwner:
+		_, isBroadcaster := user.Badges["broadcaster"]
+		return isBroadcaster
 	case PermissionEveryone:
 		return true
 	case PermissionSubscriber:
