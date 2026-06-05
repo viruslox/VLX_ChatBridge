@@ -19,9 +19,9 @@ function connect() {
         try {
             const data = JSON.parse(event.data);
             
-            // CORREZIONE: Intercetta sound_command, non chat_command
-            if (data.type === 'sound_command' && data.command === '!sigla') {
-                // CORREZIONE: Carica il video in base al filename inviato dal server
+            // LA MAGIA È QUI: Invece di hardcodare "!sigla", diciamo semplicemente:
+            // "Se ChatBridge manda un comando multimediale ed è un VIDEO, riproducilo!"
+            if (data.type === 'sound_command' && data.media_type === 'video') {
                 playVideo("/static/chat/" + data.filename); 
             }
         } catch (err) {
@@ -45,16 +45,14 @@ function playVideo(src) {
         closeVideo();
     });
 
-    // Auto off when video ends
+    // Spegnimento automatico quando il video finisce
     videoElement.onended = () => {
         closeVideo();
     };
 }
 
 function closeVideo() {
-    // fade-out
     videoWrapper.style.opacity = '0';
-    
     setTimeout(() => {
         videoWrapper.style.display = 'none';
         videoElement.src = "";
