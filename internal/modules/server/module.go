@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/core/events"
 	"VLX_ChatBridge/internal/core/module"
 )
 
@@ -41,6 +43,8 @@ func (m *Module) Start() error {
 		Handler: m.mux,
 	}
 
+	m.mux.HandleFunc("/api/gps", m.handleGPS)
+
 	go func() {
 		log.Printf("[Server] HTTP server listening on %s", m.server.Addr)
 		if err := m.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -50,6 +54,39 @@ func (m *Module) Start() error {
 
 	log.Println("[Server] Started successfully.")
 	return nil
+}
+
+// handleGPS handles the unauthenticated POST /api/gps endpoint for telemetry.
+func (m *Module) handleGPS(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var payload map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	wsMessage := map[string]interface{}{
+		"type": "gps_update",
+		"data": payload,
+	}
+
+	dataBytes, err := json.Marshal(wsMessage)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	select {
+	case events.WebSocketBroadcastChan <- dataBytes:
+	default:
+		log.Println("[Server] WebSocketBroadcastChan is full, dropping GPS update")
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // Stop cleanly shuts down the Server component.

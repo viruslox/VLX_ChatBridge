@@ -61,6 +61,19 @@ func (h *Hub) Run() {
 				}
 			}
 			h.mu.Unlock()
+
+		case message := <-events.WebSocketBroadcastChan:
+			h.mu.Lock()
+			for client := range h.clients {
+				select {
+				case client.send <- message:
+				default:
+					h.logger.Warn("Client buffer full, forcing unregister")
+					close(client.send)
+					delete(h.clients, client)
+				}
+			}
+			h.mu.Unlock()
 		}
 	}
 }
