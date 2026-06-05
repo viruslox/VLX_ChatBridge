@@ -46,6 +46,15 @@ The system is composed of six primary, independently configurable modules. These
         *   Unix Domain Socket for audio (`/tmp/vlx_audio.sock`), taking raw PCM from the internal `audio.ConnectorChannel`.
         *   Unix Domain Socket for JSON control events (`/tmp/vlx_control.sock`), receiving events mapped from `events.ControlBroadcastChan`.
 
+## Telemetry Pipeline
+
+ChatBridge natively replaces the legacy PHP/Apache polling mechanism with a highly efficient real-time telemetry pipeline. This architectural milestone deprecates the need for external web servers or PHP/SQLite for telemetry tracking.
+
+1.  **Sender:** The FrameFlow backpack sends HTTP POST requests with JSON payload data over the secure MLVPN tunnel (10.1.10.x) to ChatBridge's `POST /api/gps` endpoint.
+2.  **Security:** There is no application-level token/auth required for the `/api/gps` endpoint. The Layer 3 MLVPN isolation inherently secures the traffic, assuming only trusted devices on the VPN can reach the endpoint.
+3.  **Receiver (`internal/modules/server/module.go`):** The module parses the JSON payload entirely in RAM and immediately pushes an event (`gps_update`) to the `websocket/hub`.
+4.  **Display (`static/gps_overlay.js`):** The frontend receives the `gps_update` event via WebSockets and updates the DOM in real-time without reloading the page, achieving zero-latency rendering at 60fps.
+
 ## Pipeline Flow (ZMQ & Webhooks)
 
 The `ChatFlow` module implements a dynamic file-based routing mechanism. When text files are dropped into `static/chat/`, the module parses them to generate commands. The file parser employs a robust concurrency model to handle these updates efficiently. It scans the command directories synchronously to build an updated command map, and then safely swaps this map at runtime. Accesses to the current commands are protected by `sync.RWMutex` locks, allowing for safe hot-reloading without interrupting ongoing operations.

@@ -26,6 +26,8 @@ server:
     - "https://net.example.com"
     - "http://localhost:8000"
     - "http://127.0.0.1:8000"
+  # This port is used for scenes/emotes overlays, and ALSO acts as the
+  # ingestion endpoint for FrameFlow's telemetry (e.g., http://10.1.10.1:<PORT>/api/gps)
   port: "8000"
   test_port: "8001"
   overlay_volume: 70 # Master volume for overlays (0-100%)
