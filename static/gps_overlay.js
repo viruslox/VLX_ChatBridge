@@ -1,50 +1,74 @@
-const gpsContainer = document.getElementById('gps-container');
-const speedEl = document.getElementById('gps-speed');
-const latEl = document.getElementById('gps-lat');
-const lonEl = document.getElementById('gps-lon');
-const altEl = document.getElementById('gps-alt');
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. Selezioniamo gli elementi del DOM
+    const boxSpeed = document.getElementById('box-speed');
+    const boxPos = document.getElementById('box-pos');
+    const boxAlt = document.getElementById('box-alt');
 
-function connect() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsPath = (window.VLX_CONFIG && window.VLX_CONFIG.WEBSOCKET_PATH) || '/ws';
+    const valSpeed = document.getElementById('val-speed');
+    const valPos = document.getElementById('val-pos');
+    const valAlt = document.getElementById('val-alt');
 
-    const socket = new WebSocket(`${protocol}//${host}${wsPath}`);
+    // 2. Lettura e filtraggio dei Parametri URL (es. ?speed=1&alt=1)
+    const params = new URLSearchParams(window.location.search);
+    const showSpeed = params.has('speed');
+    const showPos = params.has('pos');
+    const showAlt = params.has('alt');
 
-    socket.onopen = () => console.log("[GPS Overlay] Connected to ChatBridge WebSocket.");
+    // Fallback: se apri la pagina senza parametri, mostra tutto
+    const showAll = (!showSpeed && !showPos && !showAlt);
 
-    socket.onclose = () => {
-        console.warn("[GPS Overlay] Connection lost. Reconnecting in 5s...");
-        setTimeout(connect, 5000);
-    };
+    const isSpeedVisible = showSpeed || showAll;
+    const isPosVisible = showPos || showAll;
+    const isAltVisible = showAlt || showAll;
 
-    socket.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
+    // Applichiamo il CSS per mostrare i blocchi richiesti
+    if (isSpeedVisible) boxSpeed.style.display = 'block';
+    if (isPosVisible) boxPos.style.display = 'block';
+    if (isAltVisible) boxAlt.style.display = 'block';
 
-            if (msg.type === 'gps_update' && msg.data) {
-                // Show container on first valid data
-                gpsContainer.style.opacity = '1';
+    // 3. Connessione al WebSocket di ChatBridge
+    function connect() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const wsPath = (window.VLX_CONFIG && window.VLX_CONFIG.WEBSOCKET_PATH) || '/websocket';
+        
+        const socket = new WebSocket(`${protocol}//${host}${wsPath}`);
 
-                const data = msg.data;
+        socket.onopen = () => console.log("[VLX GPS Overlay] Connesso a ChatBridge in Real-Time.");
+        
+        socket.onclose = () => {
+            console.warn("[VLX GPS Overlay] Connessione persa. Ritento in 5s...");
+            setTimeout(connect, 5000);
+        };
 
-                if (data.speed !== undefined) {
-                    speedEl.innerText = `${data.speed} km/h`;
+        socket.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                
+                // Filtriamo solo gli eventi GPS inviati dal server
+                if (msg.type === 'gps_update' && msg.data) {
+                    const data = msg.data;
+
+                    // Aggiorniamo i valori SOLO se il blocco corrispondente è visibile
+                    if (isSpeedVisible && data.speed !== undefined) {
+                        const speedKmh = (data.speed * 3.6).toFixed(1); // m/s to km/h
+                        valSpeed.innerText = speedKmh;
+                    }
+
+                    if (isAltVisible && data.alt !== undefined) {
+                        valAlt.innerText = data.alt.toFixed(1);
+                    }
+
+                    if (isPosVisible && data.lat !== undefined && data.lon !== undefined) {
+                        valPos.innerText = `${data.lat.toFixed(5)}, ${data.lon.toFixed(5)}`;
+                    }
                 }
-                if (data.lat !== undefined) {
-                    latEl.innerText = parseFloat(data.lat).toFixed(4);
-                }
-                if (data.lon !== undefined) {
-                    lonEl.innerText = parseFloat(data.lon).toFixed(4);
-                }
-                if (data.alt !== undefined) {
-                    altEl.innerText = `${data.alt} m`;
-                }
+            } catch (err) {
+                console.error("[VLX GPS Overlay] Errore di parsing del JSON:", err);
             }
-        } catch (err) {
-            console.error("[GPS Overlay] Parsing error:", err);
-        }
-    };
-}
+        };
+    }
 
-connect();
+    // Avvia la connessione
+    connect();
+});
