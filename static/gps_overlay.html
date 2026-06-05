@@ -2,64 +2,43 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VLX GPS Overlay</title>
-    <script>
-        window.VLX_CONFIG = {
-            WEBSOCKET_PATH: "{{.WebsocketPath}}",
-            ASSET_PREFIX: "{{.AssetPrefix}}",
-            VOLUME: {{.Volume}}
-        };
-    </script>
-    <link rel="stylesheet" href="{{.AssetPrefix}}/static/overlay.css">
+    <title>VLX GPS Telemetry Overlay</title>
+    <link rel="stylesheet" href="overlay.css">
     <style>
-        #gps-container {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            font-family: sans-serif;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 1.2em;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-        .gps-row {
-            display: flex;
-            justify-content: space-between;
-            min-width: 150px;
-        }
-        .gps-label {
+        body {
+            background-color: transparent;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
             font-weight: bold;
-            margin-right: 15px;
-            color: #aaa;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            margin: 0;
+            padding: 15px;
+            overflow: hidden; /* Evita barre di scorrimento */
+        }
+        .gps-box {
+            margin-bottom: 8px;
+        }
+        .gps-value {
+            color: #00ffcc; /* Colore fluo per i numeri, stile HUD */
         }
     </style>
 </head>
 <body>
     <div id="gps-container">
-        <div class="gps-row">
-            <span class="gps-label">SPEED:</span>
-            <span id="gps-speed">0 km/h</span>
+        <div id="box-speed" class="gps-box" style="display: none;">
+            SPEED: <span id="val-speed" class="gps-value">0.0</span> km/h
         </div>
-        <div class="gps-row">
-            <span class="gps-label">LAT:</span>
-            <span id="gps-lat">0.0000</span>
+        
+        <div id="box-alt" class="gps-box" style="display: none;">
+            ALT: <span id="val-alt" class="gps-value">0.0</span> m
         </div>
-        <div class="gps-row">
-            <span class="gps-label">LON:</span>
-            <span id="gps-lon">0.0000</span>
-        </div>
-        <div class="gps-row">
-            <span class="gps-label">ALT:</span>
-            <span id="gps-alt">0 m</span>
+
+        <div id="box-pos" class="gps-box" style="display: none;">
+            POS: <span id="val-pos" class="gps-value">0.00000, 0.00000</span>
         </div>
     </div>
-    <script src="{{.AssetPrefix}}/static/gps_overlay.js"></script>
+
+    <script src="gps_overlay.js"></script>
 </body>
 </html>
