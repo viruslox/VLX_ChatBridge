@@ -1,0 +1,45 @@
+# VLX ChatBridge Apache Configuration Template
+# requires mods: proxy, proxy_http, proxy_wstunnel, rewrite, headers
+
+<VirtualHost *:80>
+    ServerName ${DOMAIN_NAME}
+    
+    # Allow LetsEncrypt challenge, force Redirect to HTTPS
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Let's Encrypt Challenge
+    Alias /.well-known/acme-challenge/ /var/www/html/.well-known/acme-challenge/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName ${DOMAIN_NAME}
+
+    DocumentRoot /var/www/html
+    
+    # CSP
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://%{HTTP_HOST}e;"
+
+    # 1. Twitch EventSub Webhook
+    ProxyPass "/webhooks/twitch" "http://127.0.0.1:8000/webhooks/twitch" nocanon
+    ProxyPassReverse "/webhooks/twitch" "http://127.0.0.1:8000/webhooks/twitch"
+
+    # 2. Overlay & API (Token/Path Prefix)
+    ProxyPass "${PATH_PREFIX}/" "http://127.0.0.1:8000/" nocanon
+    ProxyPassReverse "${PATH_PREFIX}/" "http://127.0.0.1:8000/"
+
+    # 3. WebSocket (Overlays)
+    ProxyPass "/websocket" "ws://127.0.0.1:8000/websocket"
+    ProxyPassReverse "/websocket" "ws://127.0.0.1:8000/websocket"
+
+    <Directory /var/www/html>
+        Options FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+
+    # Log per il debugging del Proxy
+    ErrorLog ${APACHE_LOG_DIR}/chatbridge_error.log
+    CustomLog ${APACHE_LOG_DIR}/chatbridge_access.log combined
+</VirtualHost>
