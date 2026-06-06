@@ -196,6 +196,13 @@ ProxyPassReverse /<path_prefix>/ http://localhost:8000/
 
 ---
 
+### Twitch Webhook Configuration
+
+Twitch EventSub requires a publicly accessible HTTPS endpoint to deliver events.
+base_url: Must be your root public domain (e.g., https://yourdomain.com). Do not include any path prefixes or obfuscation tokens here, as Twitch will append /webhooks/twitch automatically.
+Ingestion: ChatBridge listens for notifications at the /webhooks/twitch path. Ensure your reverse proxy (e.g., Apache/Nginx) is configured to forward requests from https://yourdomain.com/webhooks/twitch to the internal port defined in server.port.
+Security: Ensure twitch.webhook_secret matches the secret provided in your Twitch Developer Console, as this is used to validate the HMAC signature of every incoming event.
+
 ## Usage
 
 ### Dynamic File-Based Routing
