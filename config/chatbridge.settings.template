@@ -19,7 +19,10 @@ modules:
 # - overlay -> chatflow
 
 server:
+  # base_url: The public root URL of your server. Example: "https://yourdomain.com"
+  # NOTE: Do not include path_prefix here. Twitch will call: <base_url>/webhooks/twitch
   base_url: "https://your.ngrok.io"
+  # path_prefix: Internal security token for overlays and API telemetry.
   path_prefix: "/asortofkey"
   websocket_path: "/websocket"
   allowed_origins:
