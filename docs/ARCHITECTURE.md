@@ -14,7 +14,7 @@ The system is composed of six primary, independently configurable modules. These
     *   **Components:**
         *   Twitch integration (EventSub webhooks for Follows/Subs/Raids and IRC client via `go-twitch-irc` for chat commands).
         *   YouTube integration (Live polling for Super Chats, Stickers, and Memberships).
-        *   Overlay management (Alerts overlay, Chat Media overlay, Emote Wall, and finalized Scenes Overlay).
+        *   Overlay management (Alerts overlay, Chat Media overlay, Emote Wall, and finalized Scenes Overlay with full audio routing and volume controls).
         *   WebSocket Hub (`*websocket.Hub`) for real-time OBS Browser Source communication, featuring strict path validation and Go 1.24+ standards compatibility.
         *   State management via SQLite (`*database.DB`).
 2.  **AudioBridge Module**

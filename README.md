@@ -155,6 +155,12 @@ overlay:
     discord: yes
     streaming: yes
     volume: 75
+  scenes:
+    enable: yes
+    html: yes
+    discord: yes
+    streaming: yes
+    volume: 75
 
 discord:
   token: "YOUR_DISCORD_BOT_TOKEN"

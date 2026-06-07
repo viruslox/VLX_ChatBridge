@@ -104,7 +104,11 @@ type OverlayConfig struct {
 }
 
 type OverlayScenesConfig struct {
-	Enable YesNoBool `yaml:"enable"`
+	Enable    YesNoBool `yaml:"enable"`
+	HTML      YesNoBool `yaml:"html"`
+	Discord   YesNoBool `yaml:"discord"`
+	Streaming YesNoBool `yaml:"streaming"`
+	Volume    int       `yaml:"volume"`
 }
 
 type OverlayEmotesConfig struct {

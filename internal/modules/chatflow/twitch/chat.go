@@ -551,10 +551,27 @@ func (c *ChatClient) handleSceneCommand(message twitch.PrivateMessage) {
 		"scene_name": sceneName,
 	}
 
-	// Broadcast to WebSocket if Scenes overlay is enabled
-	scenesEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Scenes.Enable)
-	if scenesEnabled {
+	// Evaluate master switches
+	scenesMasterEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Scenes.Enable)
+
+	// Broadcast to WebSocket if Scenes overlay HTML is enabled
+	if scenesMasterEnabled && bool(c.config.Overlay.Scenes.HTML) {
 		c.hub.BroadcastJSON(payload)
+	}
+
+	streamingEnabled := scenesMasterEnabled && bool(c.config.Overlay.Scenes.Streaming)
+	discordEnabled := scenesMasterEnabled && bool(c.config.Overlay.Scenes.Discord)
+	connectorEnabled := scenesMasterEnabled && bool(c.config.Modules.ConnectorEnabled) && bool(c.config.Connector.IPCAudioOut)
+
+	if streamingEnabled || discordEnabled || connectorEnabled {
+		extensions := []string{".mp3", ".wav", ".mp4", ".webm"}
+		for _, ext := range extensions {
+			filePath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", sceneName+ext)
+			if _, err := os.Stat(filePath); err == nil {
+				go audio.PlayAlert("scene_change_"+sceneName, filePath, streamingEnabled, discordEnabled, connectorEnabled)
+				break
+			}
+		}
 	}
 
 	// Also broadcast globally so other modules (like Connector) can hook into it
