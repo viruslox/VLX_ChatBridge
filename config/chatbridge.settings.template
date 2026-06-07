@@ -75,7 +75,7 @@ overlay:
     discord: yes
     streaming: yes
     volume: 75
-  scenes: # scenes_overlay.html
+  scenes: # scenes_overlay.html (configured for websocket events)
     enable: yes
 
 discord:

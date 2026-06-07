@@ -37,7 +37,7 @@ All six modules can be enabled or disabled on-the-fly via configuration (`module
 ### ChatFlow Features
 *   **Twitch Integration:** EventSub Webhooks (Follows, Subs, Raids) and IRC Bot with Role-Based Access Control (!commands).
 *   **YouTube Integration:** Live polling for Super Chats, Stickers, and Memberships.
-*   **Overlays:** Alerts overlay, Chat Media overlay, and Emote Wall.
+*   **Overlays:** Alerts overlay, Chat Media overlay, Emote Wall, and Scenes overlay.
 *   **Smart Rate Limiting & Persistence:** Token buckets for API quotas and SQLite for state/token management.
 *   **Dynamic Command Generation:** File-based chat commands generation by dropping files in corresponding permission folders (`everyone`, `subscribers`, `vips`). Use the `owner_` prefix to enforce strict broadcaster-only access control.
 *   **Dynamic File-Based Routing (ZMQ & Webhooks):** As part of **"The Holy Trinity"** architecture, ChatBridge acts as the central nervous system. It receives chat commands and routes them instantly via IPC/ZMQ to `VLX_VisionBridge` (for zero-latency video mixing) and via HTTP Webhooks to `VLX_FrameFlow` (for IRL backpack control).
@@ -81,7 +81,7 @@ VLX_ChatBridge/
 
 ## System Requirements
 *   **OS:** Linux (Tested on Debian)
-*   **Dependencies:** Go 1.21+, SQLite, FFmpeg, libopus-dev, libopusfile-dev, pkg-config, cmake, clang, build-essential
+*   **Dependencies:** Go 1.24+, SQLite, FFmpeg, libopus-dev, libopusfile-dev, pkg-config, cmake, clang, build-essential
 *   *Note: PortAudio and Chromium dependencies previously required by AudioBridge have been removed in favor of direct internal audio decoding.*
 
 ## Installation & Build
@@ -189,10 +189,14 @@ Below is an example of an Apache reverse proxy configuration that properly route
 ```apache
 RewriteCond %{HTTP:Upgrade} websocket [NC]
 RewriteCond %{HTTP:Connection} upgrade [NC]
-RewriteRule "^/<path_prefix>/wwf$" "ws://localhost:8000/wwf" [P,L]
+RewriteRule "^/<path_prefix>/websocket$" "ws://localhost:8000/websocket" [P,L]
 ProxyPass /<path_prefix>/ http://localhost:8000/
 ProxyPassReverse /<path_prefix>/ http://localhost:8000/
 ```
+
+### Security Considerations
+The WebSocket upgrade path performs strict, exact matching against the configured `websocket_path` in `chatbridge.settings.template` to prevent unauthorized WebSocket connections and aligns with Go 1.24+ `http.ServeMux` standards.
+
 
 ---
 

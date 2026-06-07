@@ -2,13 +2,10 @@ package websocket
 
 import (
 	"encoding/json"
+	"sync"
 
 	"VLX_ChatBridge/internal/core/events"
 	"go.uber.org/zap"
-)
-
-import (
-	"sync"
 )
 
 // Hub manages the set of active clients and broadcasts messages.
