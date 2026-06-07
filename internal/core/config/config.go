@@ -100,6 +100,11 @@ type OverlayConfig struct {
 	Emotes OverlayEmotesConfig `yaml:"emotes"`
 	Alerts OverlayTargetConfig `yaml:"alerts"`
 	Chat   OverlayTargetConfig `yaml:"chat"`
+	Scenes OverlayScenesConfig `yaml:"scenes"`
+}
+
+type OverlayScenesConfig struct {
+	Enable YesNoBool `yaml:"enable"`
 }
 
 type OverlayEmotesConfig struct {

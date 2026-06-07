@@ -75,6 +75,8 @@ overlay:
     discord: yes
     streaming: yes
     volume: 75
+  scenes: # scenes_overlay.html
+    enable: yes
 
 discord:
   token: ""
