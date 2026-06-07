@@ -65,6 +65,10 @@ func (m *Module) Start() error {
 		wsPath = "/" + wsPath
 	}
 	m.mux.HandleFunc(wsPath, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != wsPath {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
 		allowedOrigins := m.config.Server.AllowedOrigins
 		if len(allowedOrigins) == 0 {
 			allowedOrigins = []string{"*"}
@@ -267,6 +271,8 @@ func (m *Module) serveTemplate(w http.ResponseWriter, filename string) {
 		vol = m.config.Overlay.Alerts.Volume
 	case "chat_overlay.html":
 		vol = m.config.Overlay.Chat.Volume
+	case "scenes_overlay.html":
+		vol = 100
 	}
 
 	publicWsPath := path.Join(pathPrefix, websocketPath)
