@@ -1,10 +1,12 @@
 const videoWrapper = document.getElementById('video-wrapper');
 const videoElement = document.getElementById('scenes-video');
+let basePath = '';
 
 function connect() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
     const wsPath = (window.VLX_CONFIG && window.VLX_CONFIG.WEBSOCKET_PATH) || '/websocket';
+    basePath = wsPath.substring(0, wsPath.lastIndexOf('/'));
     
     const socket = new WebSocket(`${protocol}//${host}${wsPath}`);
 
@@ -19,10 +21,14 @@ function connect() {
         try {
             const data = JSON.parse(event.data);
             
-            // LA MAGIA È QUI: Invece di hardcodare "!sigla", diciamo semplicemente:
-            // "Se ChatBridge manda un comando multimediale ed è un VIDEO, riproducilo!"
-            if (data.type === 'sound_command' && data.media_type === 'video') {
-                playVideo("/static/chat/" + data.filename); 
+            if (data.type === 'scene_change') {
+                console.log("[Scene Overlay] Scene change requested:", data.scene_name);
+                // Currently doing nothing visually to the DOM specifically for generic scene names.
+                // You can add logic here if you want to switch CSS classes, hide/show things
+                // based on data.scene_name (e.g. 'BRB', 'Game', etc.)
+            }
+            else if (data.type === 'sound_command' && data.media_type === 'video') {
+                playVideo(`${basePath}/static/chat/${data.filename}`);
             }
         } catch (err) {
             console.error("[Scene Overlay] Parsing error:", err);

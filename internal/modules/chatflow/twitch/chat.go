@@ -524,6 +524,49 @@ func (c *ChatClient) handleCommand(message twitch.PrivateMessage) {
 	if lookup.exists {
 		c.processMediaCommand(commandName, message, lookup)
 	}
+
+	// 6. SCENE COMMAND Logic (!scene <name>)
+	if commandName == "scene" {
+		c.handleSceneCommand(message)
+	}
+}
+
+func (c *ChatClient) handleSceneCommand(message twitch.PrivateMessage) {
+	// Requires Mod or Broadcaster permission
+	if !c.hasPermission(message.User, PermissionVIP) {
+		c.logger.Warn("Unauthorized attempt to change scene", zap.String("user", message.User.Name))
+		return
+	}
+
+	parts := strings.SplitN(strings.TrimSpace(message.Message), " ", 2)
+	if len(parts) < 2 {
+		c.logger.Info("Scene command missing scene name argument", zap.String("user", message.User.Name))
+		return
+	}
+
+	sceneName := strings.TrimSpace(parts[1])
+
+	payload := map[string]interface{}{
+		"type":       "scene_change",
+		"scene_name": sceneName,
+	}
+
+	// Broadcast to WebSocket if Scenes overlay is enabled
+	scenesEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Scenes.Enable)
+	if scenesEnabled {
+		c.hub.BroadcastJSON(payload)
+	}
+
+	// Also broadcast globally so other modules (like Connector) can hook into it
+	outData, err := json.Marshal(payload)
+	if err == nil {
+		select {
+		case events.ControlBroadcastChan <- outData:
+		default:
+		}
+	}
+
+	c.logger.Info("Scene change triggered via chat", zap.String("scene", sceneName), zap.String("user", message.User.Name))
 }
 
 func (c *ChatClient) processAnnouncement(commandName string, message twitch.PrivateMessage, lookup commandLookupResult) {
