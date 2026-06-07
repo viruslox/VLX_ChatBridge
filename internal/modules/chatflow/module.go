@@ -272,7 +272,7 @@ func (m *Module) serveTemplate(w http.ResponseWriter, filename string) {
 	case "chat_overlay.html":
 		vol = m.config.Overlay.Chat.Volume
 	case "scenes_overlay.html":
-		vol = 100
+		vol = m.config.Overlay.Scenes.Volume
 	}
 
 	publicWsPath := path.Join(pathPrefix, websocketPath)
