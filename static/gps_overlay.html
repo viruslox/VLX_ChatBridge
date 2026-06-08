@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>VLX GPS Telemetry Overlay</title>
-    <link rel="stylesheet" href="overlay.css">
+    <script>
+        window.VLX_CONFIG = {
+            WEBSOCKET_PATH: "{{.WebsocketPath}}",
+            ASSET_PREFIX: "{{.AssetPrefix}}"
+        };
+    </script>
+    <link rel="stylesheet" href="{{.AssetPrefix}}/static/overlay.css">
     <style>
         body {
             background-color: transparent;
@@ -39,6 +45,6 @@
         </div>
     </div>
 
-    <script src="gps_overlay.js"></script>
+    <script src="{{.AssetPrefix}}/static/gps_overlay.js"></script>
 </body>
 </html>
