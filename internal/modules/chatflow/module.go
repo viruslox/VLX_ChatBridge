@@ -85,19 +85,19 @@ func (m *Module) Start() error {
 
 	// Template routes
 	m.mux.HandleFunc("/static/alerts_overlay.html", func(w http.ResponseWriter, r *http.Request) {
-		m.serveTemplate(w, "alerts_overlay.html")
+		m.serveTemplate(w, r, "alerts_overlay.html")
 	})
 	m.mux.HandleFunc("/static/chat_overlay.html", func(w http.ResponseWriter, r *http.Request) {
-		m.serveTemplate(w, "chat_overlay.html")
+		m.serveTemplate(w, r, "chat_overlay.html")
 	})
 	m.mux.HandleFunc("/static/emotes_overlay.html", func(w http.ResponseWriter, r *http.Request) {
-		m.serveTemplate(w, "emotes_overlay.html")
+		m.serveTemplate(w, r, "emotes_overlay.html")
 	})
 	m.mux.HandleFunc("/static/gps_overlay.html", func(w http.ResponseWriter, r *http.Request) {
-		m.serveTemplate(w, "gps_overlay.html")
+		m.serveTemplate(w, r, "gps_overlay.html")
 	})
 	m.mux.HandleFunc("/static/scenes_overlay.html", func(w http.ResponseWriter, r *http.Request) {
-		m.serveTemplate(w, "scenes_overlay.html")
+		m.serveTemplate(w, r, "scenes_overlay.html")
 	})
 
 	// Static file server for overlays
@@ -260,9 +260,12 @@ func (m *Module) Name() string {
 	return "ChatFlow"
 }
 
-func (m *Module) serveTemplate(w http.ResponseWriter, filename string) {
+func (m *Module) serveTemplate(w http.ResponseWriter, r *http.Request, filename string) {
 	websocketPath := m.config.Server.WebsocketPath
 	pathPrefix := m.config.Server.PathPrefix
+	if r.Header.Get("X-Forwarded-For") == "" && r.Header.Get("X-Real-IP") == "" && r.Header.Get("X-Forwarded-Host") == "" {
+		pathPrefix = ""
+	}
 
 	// Determine volume based on template filename, default to 100 if not set or invalid
 	vol := 100

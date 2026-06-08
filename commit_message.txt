@@ -1,0 +1,7 @@
+Refactor template serving to support dynamic path prefixes and merge overlay CSS
+
+- Updated `serveTemplate` in `internal/modules/chatflow/module.go` to accept `*http.Request` and dynamically clear the `pathPrefix` when proxy headers (`X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`) are missing, resolving absolute pathing issues for direct local requests.
+- Merged the contents of `static/scenes_overlay.css` into `static/overlay.css`.
+- Deleted `static/scenes_overlay.css`.
+- Updated all `.html` overlay templates to use `overlay.css` and use the asset prefix appropriately.
+- Injected `window.VLX_CONFIG` and asset prefix to `gps_overlay.html` for consistency.
