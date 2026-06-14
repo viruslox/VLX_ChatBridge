@@ -77,50 +77,6 @@ type ChatClient struct {
 	broadcasterTokenExpiry time.Time
 }
 
-func (c *ChatClient) getBroadcasterToken() string {
-	c.tokenMu.Lock()
-	defer c.tokenMu.Unlock()
-
-	if c.broadcasterToken != "" && time.Now().Before(c.broadcasterTokenExpiry) {
-		return c.broadcasterToken
-	}
-
-	if c.config.Twitch.BroadcasterRefreshToken == "" {
-		c.logger.Error("broadcaster_refresh_token is missing in config! Cannot refresh.")
-		return ""
-	}
-
-	reqURL := "https://id.twitch.tv/oauth2/token"
-	data := "client_id=" + c.config.Twitch.ClientID + "&client_secret=" + c.config.Twitch.ClientSecret + "&grant_type=refresh_token&refresh_token=" + c.config.Twitch.BroadcasterRefreshToken
-
-	req, err := http.NewRequest("POST", reqURL, strings.NewReader(data))
-	if err != nil {
-		return ""
-	}
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		c.logger.Error("Failed to refresh broadcaster token from Twitch API")
-		if resp != nil {
-			resp.Body.Close()
-		}
-		return ""
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		AccessToken string `json:"access_token"`
-		ExpiresIn   int    `json:"expires_in"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
-		c.broadcasterToken = result.AccessToken
-		// Cache until 60 seconds before actual expiration to be safe
-		c.broadcasterTokenExpiry = time.Now().Add(time.Duration(result.ExpiresIn-60) * time.Second)
-		return c.broadcasterToken
-	}
-	return ""
-}
 
 // UpdateCommands safely updates the command and announcement maps at runtime
 func (c *ChatClient) UpdateCommands(cmds AudioCommandsMap, anns AnnouncementsMap) {
@@ -418,6 +374,58 @@ func (c *ChatClient) startAnnouncementTimers() {
 	c.mu.RUnlock()
 }
 
+func (c *ChatClient) getValidToken(userID string) (string, error) {
+	creds, err := c.db.GetTwitchCredentials(userID)
+	if err != nil {
+		return "", fmt.Errorf("credentials not found for user %s: %v", userID, err)
+	}
+
+	// If token is valid for at least 5 more minutes, use it
+	if time.Now().Add(5 * time.Minute).Before(creds.ExpiresAt) {
+		return creds.AccessToken, nil
+	}
+
+	// Token expired, attempt refresh
+	reqURL := "https://id.twitch.tv/oauth2/token"
+	data := fmt.Sprintf("client_id=%s&client_secret=%s&grant_type=refresh_token&refresh_token=%s",
+		c.config.Twitch.ClientID, c.config.Twitch.ClientSecret, creds.RefreshToken)
+
+	req, err := http.NewRequest("POST", reqURL, strings.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		if resp != nil {
+			resp.Body.Close()
+		}
+		return "", fmt.Errorf("failed to refresh token from Twitch API")
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	creds.AccessToken = result.AccessToken
+	if result.RefreshToken != "" {
+		creds.RefreshToken = result.RefreshToken
+	}
+	creds.ExpiresAt = time.Now().Add(time.Duration(result.ExpiresIn) * time.Second)
+
+	// Save back to DB
+	c.db.UpsertTwitchCredentials(creds)
+
+	return creds.AccessToken, nil
+}
+
 // Stop gracefully disconnects the Twitch IRC client and stops background timers.
 func (c *ChatClient) Stop() {
 	c.mu.Lock()
@@ -444,6 +452,15 @@ func (c *ChatClient) Start() {
 	botOAuthToken := c.config.Twitch.Chat.BotToken
 	channelToJoin := c.config.Twitch.Chat.ChannelToJoin
 
+	if c.config.Twitch.Chat.BotID != "" {
+		dbToken, err := c.getValidToken(c.config.Twitch.Chat.BotID)
+		if err == nil && dbToken != "" {
+			botOAuthToken = "oauth:" + dbToken
+			c.logger.Info("Using dynamically refreshed database token for IRC bot")
+		} else {
+			c.logger.Warn("Failed to get bot token from DB, falling back to static config token", zap.Error(err))
+		}
+	}
 
 	c.client = twitch.NewClient(botUsername, botOAuthToken)
 	// Force port 443 (SSL)
@@ -701,9 +718,9 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 				return
 			}
 
-			authToken := c.getBroadcasterToken()
-			if authToken == "" {
-				c.logger.Error("Failed to get valid broadcaster token. Cannot delete message.", zap.String("command", commandName))
+			authToken, err := c.getValidToken(message.RoomID)
+			if err != nil {
+				c.logger.Error("Failed to get valid broadcaster token. Cannot delete message.", zap.String("command", commandName), zap.Error(err))
 				return
 			}
 
