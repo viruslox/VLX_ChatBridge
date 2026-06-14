@@ -149,9 +149,7 @@ type AudioSourceConfig struct {
 }
 
 type ConnectorConfig struct {
-	IPCAudioOut   YesNoBool `yaml:"ipc_audio_out"`
 	IPCControlOut YesNoBool `yaml:"ipc_control_out"`
-	AudioSocket   string    `yaml:"audio_socket"`
 	ControlSocket string    `yaml:"control_socket"`
 }
 

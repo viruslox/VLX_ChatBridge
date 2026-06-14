@@ -6,7 +6,6 @@ type StreamData struct {
 	Data         []byte
 	RouteSRT     bool
 	RouteDiscord bool
-	RouteConnector bool
 }
 
 // PCMChannel is the shared channel for passing raw PCM audio data
@@ -15,7 +14,6 @@ var PCMChannel = make(chan StreamData, 1024)
 
 var SRTChannel = make(chan StreamData, 1024)
 var DiscordChannel = make(chan StreamData, 1024)
-var ConnectorChannel = make(chan StreamData, 1024)
 
 func init() {
 	go func() {
@@ -30,12 +28,6 @@ func init() {
 			if data.RouteDiscord {
 				select {
 				case DiscordChannel <- data:
-				default:
-				}
-			}
-			if data.RouteConnector {
-				select {
-				case ConnectorChannel <- data:
 				default:
 				}
 			}

@@ -107,11 +107,8 @@ audio_source:
   url: "srt://some.online.radio"
 
 # VLX Connector configuration (IPC locally for VisionBridge)
-# Enables Zero-Latency IPC routing to VLX_VisionBridge for both raw PCM audio and JSON control commands.
-# This explicitly enables the IPC ZeroMQ routing to VisionBridge.
+# Enables IPC JSON command routing to VLX_VisionBridge for JSON control commands.
 connector:
   # Requires connector_enabled: yes in modules block
-  ipc_audio_out: yes
   ipc_control_out: yes
-  audio_socket: "/tmp/vlx_audio.sock"
   control_socket: "/tmp/vlx_control.sock"
