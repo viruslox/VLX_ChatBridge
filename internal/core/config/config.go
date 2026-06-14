@@ -70,11 +70,12 @@ type DatabaseConfig struct {
 }
 
 type TwitchConfig struct {
-	ClientID      string           `yaml:"client_id"`
-	ClientSecret  string           `yaml:"client_secret"`
-	WebhookSecret string           `yaml:"webhook_secret"`
-	ChannelName   string           `yaml:"channel_name"`
-	Chat          TwitchChatConfig `yaml:"chat"`
+	ClientID                string           `yaml:"client_id"`
+	ClientSecret            string           `yaml:"client_secret"`
+	WebhookSecret           string           `yaml:"webhook_secret"`
+	BroadcasterRefreshToken string           `yaml:"broadcaster_refresh_token"`
+	ChannelName             string           `yaml:"channel_name"`
+	Chat                    TwitchChatConfig `yaml:"chat"`
 }
 
 type TwitchChatConfig struct {
