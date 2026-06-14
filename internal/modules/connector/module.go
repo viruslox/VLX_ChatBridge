@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -158,28 +159,64 @@ func (m *Module) controlWriterLoop() {
 			// Currently, chatflow sends "type" field (e.g. "sound_command", "alert", "emote_wall").
 			eventType, _ := innerPayload["type"].(string)
 
-			connectorEvent := ConnectorPayload{
-				EventID:   uuid.New().String(),
-				Timestamp: time.Now().Unix(),
-				Action:    "trigger_event",
-				Target:    eventType,
-				Payload:   innerPayload,
-			}
-
 			var eventsToSend []ConnectorPayload
 
-			// Intercept specific commands to control VisionBridge
-			if eventType == "ipc_control" {
+			// NEW BLOCK: Intercept legacy [ZMQ_CONTROL] text commands
+			textVal, hasText := innerPayload["text"].(string)
+			if hasText && strings.HasPrefix(strings.TrimSpace(textVal), "[ZMQ_CONTROL]") {
+				lines := strings.Split(textVal, "\n")
+				var target string
+				var enabled bool
+				action := "set_input_state" // default
+
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "Target=") {
+						target = strings.TrimPrefix(line, "Target=")
+					} else if strings.HasPrefix(line, "Enabled=") {
+						val := strings.ToLower(strings.TrimPrefix(line, "Enabled="))
+						enabled = (val == "true")
+					} else if strings.HasPrefix(line, "Action=") {
+						action = strings.TrimPrefix(line, "Action=")
+					}
+				}
+
+				if target != "" {
+					parsedEvent := ConnectorPayload{
+						EventID:   uuid.New().String(),
+						Timestamp: time.Now().Unix(),
+						Action:    action,
+						Target:    target,
+					}
+					if action == "set_input_state" {
+						parsedEvent.Payload = map[string]interface{}{"enabled": enabled}
+					} else {
+						parsedEvent.Payload = map[string]interface{}{}
+					}
+					eventsToSend = append(eventsToSend, parsedEvent)
+				}
+			} else if eventType == "ipc_control" {
 				// Parse dynamic IPC payload from ChatFlow
 				target, _ := innerPayload["target"].(string)
 				enabled, _ := innerPayload["enabled"].(bool)
 
-				connectorEvent.Action = "set_input_state"
-				connectorEvent.Target = target
-				connectorEvent.Payload = map[string]interface{}{"enabled": enabled}
+				connectorEvent := ConnectorPayload{
+					EventID:   uuid.New().String(),
+					Timestamp: time.Now().Unix(),
+					Action:    "set_input_state",
+					Target:    target,
+					Payload:   map[string]interface{}{"enabled": enabled},
+				}
 				eventsToSend = append(eventsToSend, connectorEvent)
 			} else {
-				// For non-control events, just pass through as trigger_event
+				// For non-control events, just pass through
+				connectorEvent := ConnectorPayload{
+					EventID:   uuid.New().String(),
+					Timestamp: time.Now().Unix(),
+					Action:    "trigger_event",
+					Target:    eventType,
+					Payload:   innerPayload,
+				}
 				eventsToSend = append(eventsToSend, connectorEvent)
 			}
 
