@@ -44,6 +44,7 @@ twitch:
   client_secret: ""
   webhook_secret: ""
   channel_name: ""
+  broadcaster_refresh_token: "IL_TUO_REFRESH_TOKEN_QUI"
   chat:
     bot_username: ""
     bot_token: ""
