@@ -197,15 +197,23 @@ func (m *Module) controlWriterLoop() {
 				}
 			} else if eventType == "ipc_control" {
 				// Parse dynamic IPC payload from ChatFlow
+				action, _ := innerPayload["action"].(string)
+				if action == "" {
+					action = "set_input_state"
+				}
 				target, _ := innerPayload["target"].(string)
 				enabled, _ := innerPayload["enabled"].(bool)
 
 				connectorEvent := ConnectorPayload{
 					EventID:   uuid.New().String(),
 					Timestamp: time.Now().Unix(),
-					Action:    "set_input_state",
+					Action:    action,
 					Target:    target,
-					Payload:   map[string]interface{}{"enabled": enabled},
+				}
+				if action == "set_input_state" {
+					connectorEvent.Payload = map[string]interface{}{"enabled": enabled}
+				} else {
+					connectorEvent.Payload = map[string]interface{}{}
 				}
 				eventsToSend = append(eventsToSend, connectorEvent)
 			} else {
