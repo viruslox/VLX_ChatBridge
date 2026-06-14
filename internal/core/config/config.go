@@ -83,6 +83,7 @@ type TwitchChatConfig struct {
 	BotToken        string `yaml:"bot_token"`
 	ChannelToJoin   string `yaml:"channel_to_join"`
 	CommandCooldown int    `yaml:"command_cooldown"`
+	BotID           string `yaml:"bot_id"`
 }
 
 type YouTubeConfig struct {
