@@ -38,17 +38,14 @@ server:
 # Recommended to use 2 different accounts, or at least 2 difrerent tokens
 # You can create token with https://twitchtokengenerator.com/
 twitch:
-  # client_id is required. For the AutoDelete feature to work via the Helix API,
-  # the associated bot token must include the 'moderator:manage:chat_messages' OAuth scope.
-  client_id: ""
-  client_secret: ""
-  webhook_secret: ""
-  channel_name: ""
-  broadcaster_refresh_token: "IL_TUO_REFRESH_TOKEN_QUI"
+  client_id: "YOUR_TWITCH_APP_CLIENT_ID"
+  client_secret: "YOUR_TWITCH_APP_CLIENT_SECRET"
+  webhook_secret: "YOUR_CUSTOM_WEBHOOK_SECRET"
+  channel_name: "viruslox"
   chat:
-    bot_username: ""
-    bot_token: ""
-    channel_to_join: ""
+    bot_username: "<twitch account acting as bot>"
+    bot_id: "YOUR_BOT_NUMERIC_ID"
+    channel_to_join: "<channel name>"
     command_cooldown: 15  # General cooldown in seconds (default 15)
 
 # YouTube APIs
