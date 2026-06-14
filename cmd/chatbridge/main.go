@@ -60,9 +60,7 @@ func main() {
 	log.Printf("AudioSource Enable: %v", cfg.AudioSource.Enable)
 	log.Printf("AudioSource Discord: %v", cfg.AudioSource.Discord)
 	log.Printf("AudioSource Streaming: %v", cfg.AudioSource.Streaming)
-	log.Printf("Connector IPC Audio Out: %v", cfg.Connector.IPCAudioOut)
 	log.Printf("Connector IPC Control Out: %v", cfg.Connector.IPCControlOut)
-	log.Printf("Connector Audio Socket: %s", cfg.Connector.AudioSocket)
 	log.Printf("Connector Control Socket: %s", cfg.Connector.ControlSocket)
 	log.Println("----------------------------------------")
 

@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"VLX_ChatBridge/internal/core/audio"
 	"VLX_ChatBridge/internal/core/config"
 	"VLX_ChatBridge/internal/core/events"
 	"VLX_ChatBridge/internal/core/module"
@@ -19,9 +18,6 @@ import (
 type Module struct {
 	config     *config.Config
 	controller module.Controller
-
-	connectorMixer *audio.Mixer
-	audioOutChan   chan []byte
 	stopChan       chan struct{}
 }
 
@@ -47,18 +43,6 @@ type ConnectorPayload struct {
 func (m *Module) Start() error {
 	log.Println("[Connector] Starting module...")
 
-	if m.config.Connector.IPCAudioOut {
-		log.Println("[Connector] Audio IPC Out is ENABLED")
-		m.audioOutChan = make(chan []byte, 1024)
-		// Volume is 100 for IPC out. Similar to SRT but we pipe to UDS.
-		m.connectorMixer = audio.NewMixer("Connector", 100, true, audio.ConnectorChannel, m.audioOutChan)
-		if err := m.connectorMixer.Start(); err != nil {
-			log.Printf("[Connector] Mixer start error: %v", err)
-		}
-
-		go m.audioWriterLoop()
-	}
-
 	if m.config.Connector.IPCControlOut {
 		log.Println("[Connector] Control IPC Out is ENABLED")
 		go m.controlWriterLoop()
@@ -73,10 +57,6 @@ func (m *Module) Stop() error {
 	log.Println("[Connector] Stopping module...")
 	close(m.stopChan)
 
-	if m.connectorMixer != nil {
-		m.connectorMixer.Stop()
-	}
-
 	log.Println("[Connector] Stopped successfully.")
 	return nil
 }
@@ -84,44 +64,6 @@ func (m *Module) Stop() error {
 // Name returns the module identifier.
 func (m *Module) Name() string {
 	return "Connector"
-}
-
-func (m *Module) audioWriterLoop() {
-	var conn net.Conn
-	var err error
-	socketPath := m.config.Connector.AudioSocket
-	if socketPath == "" {
-		socketPath = "/tmp/vlx_audio.sock"
-	}
-
-	for {
-		select {
-		case <-m.stopChan:
-			if conn != nil {
-				conn.Close()
-			}
-			return
-		case data := <-m.audioOutChan:
-			if conn == nil {
-				conn, err = net.Dial("unix", socketPath)
-				if err != nil {
-					// Drop packet if not connected. VLX_VisionBridge might be down.
-					// Sleep briefly to avoid tight spin-loop on dial errors if bombarded.
-					time.Sleep(10 * time.Millisecond)
-					continue
-				}
-			}
-
-			// Non-blocking write approach (using deadline)
-			conn.SetWriteDeadline(time.Now().Add(50 * time.Millisecond))
-			_, err = conn.Write(data)
-			if err != nil {
-				// Broken pipe or timeout, close and reset
-				conn.Close()
-				conn = nil
-			}
-		}
-	}
 }
 
 func (m *Module) controlWriterLoop() {

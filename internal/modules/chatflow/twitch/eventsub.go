@@ -604,10 +604,9 @@ func (c *Client) handleNotification(eventType string, eventData json.RawMessage)
 			c.hub.BroadcastJSON(payload)
 		}
 
-		connectorEnabled := bool(c.config.Modules.ConnectorEnabled) && bool(c.config.Connector.IPCAudioOut)
-		if streamingEnabled || discordEnabled || connectorEnabled {
+		if streamingEnabled || discordEnabled {
 			fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
-			go audio.PlayAlert("twitch_alert", fullPath, streamingEnabled, discordEnabled, connectorEnabled)
+			go audio.PlayAlert("twitch_alert", fullPath, streamingEnabled, discordEnabled)
 		}
 	}
 }

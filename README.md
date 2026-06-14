@@ -181,9 +181,7 @@ audio_source:
   url: "srt://127.0.0.1:2020?..."
 
 connector:
-  ipc_audio_out: yes
   ipc_control_out: yes
-  audio_socket: "/tmp/vlx_audio.sock"
   control_socket: "/tmp/vlx_control.sock"
 ```
 

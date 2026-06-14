@@ -631,14 +631,13 @@ func (c *ChatClient) handleSceneCommand(message twitch.PrivateMessage) {
 
 	streamingEnabled := scenesMasterEnabled && bool(c.config.Overlay.Scenes.Streaming)
 	discordEnabled := scenesMasterEnabled && bool(c.config.Overlay.Scenes.Discord)
-	connectorEnabled := scenesMasterEnabled && bool(c.config.Modules.ConnectorEnabled) && bool(c.config.Connector.IPCAudioOut)
 
-	if streamingEnabled || discordEnabled || connectorEnabled {
+	if streamingEnabled || discordEnabled {
 		extensions := []string{".mp3", ".wav", ".mp4", ".webm"}
 		for _, ext := range extensions {
 			filePath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", sceneName+ext)
 			if _, err := os.Stat(filePath); err == nil {
-				go audio.PlayAlert("scene_change_"+sceneName, filePath, streamingEnabled, discordEnabled, connectorEnabled)
+				go audio.PlayAlert("scene_change_"+sceneName, filePath, streamingEnabled, discordEnabled)
 				break
 			}
 		}
@@ -800,10 +799,9 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 		c.hub.BroadcastJSON(payload)
 	}
 
-	connectorEnabled := bool(c.config.Modules.ConnectorEnabled) && bool(c.config.Connector.IPCAudioOut)
-	if streamingEnabled || discordEnabled || connectorEnabled {
+	if streamingEnabled || discordEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", lookup.cmdData.Filename)
-		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled, connectorEnabled)
+		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled)
 	}
 }
 

@@ -41,9 +41,8 @@ The system is composed of six primary, independently configurable modules. These
         *   Ingests external audio feeds (e.g., internet radio) via an `ffmpeg` child process.
         *   Decodes the audio to raw PCM (s16le, 48000Hz, stereo) and pipes it directly to the internal `audio.PCMChannel`.
 6.  **Connector Module**
-    *   **Purpose:** Local IPC integration with `VLX_VisionBridge`.
+    *   **Purpose:** Local IPC integration with `VLX_VisionBridge` exclusively for JSON control commands.
     *   **Components:**
-        *   Unix Domain Socket for audio (`/tmp/vlx_audio.sock`), taking raw PCM from the internal `audio.ConnectorChannel`.
         *   Unix Domain Socket for JSON control events (`/tmp/vlx_control.sock`), receiving events mapped from `events.ControlBroadcastChan`.
 
 ## Telemetry Pipeline
@@ -70,9 +69,8 @@ These control commands are routed asynchronously to the globally accessible `eve
 The audio system replaces traditional headless browser capture with direct internal audio decoding and mixing.
 
 *   **Decoding:** Media files triggered by alerts or chat commands are decoded by FFmpeg (via `os/exec` in `audio.DecodeMediaToPCM`) into 48kHz stereo 16-bit PCM.
-*   **Routing:** Audio is initially sent to a shared singleton `PCMChannel` (`chan StreamData`). A central router (`internal/core/audio/pipe.go`) fans out this data to specific channels (`SRTChannel`, `DiscordChannel`, and `ConnectorChannel`) based on configuration flags (`RouteSRT`, `RouteDiscord`, and `RouteConnector`).
-*   **Mixing:** Independent `audio.Mixer` instances handle mixing for different outputs (e.g., SRT, Discord, Connector). This separation prevents issues like echoing a Discord participant's audio back to them. The mixer tracks multiple streams by ID, applying dynamic equal-power volume balancing and envelope-based noise gating.
-*   **Audio IPC Pipeline:** The `Connector` module plays a critical role in the "Holy Trinity" by pushing raw PCM audio directly to the audio Unix domain socket (e.g., `/tmp/vlx_audio.sock`). By bypassing intermediate network layers, this direct pipeline ensures extremely low-latency delivery of the audio stream, enabling precise, zero-latency lip-sync processing in `VLX_VisionBridge`.
+*   **Routing:** Audio is initially sent to a shared singleton `PCMChannel` (`chan StreamData`). A central router (`internal/core/audio/pipe.go`) fans out this data to specific channels (`SRTChannel`, and `DiscordChannel`) based on configuration flags (`RouteSRT`, and `RouteDiscord`).
+*   **Mixing:** Independent `audio.Mixer` instances handle mixing for different outputs (e.g., SRT, Discord). This separation prevents issues like echoing a Discord participant's audio back to them. The mixer tracks multiple streams by ID, applying dynamic equal-power volume balancing and envelope-based noise gating.
 
 ## Database
 
