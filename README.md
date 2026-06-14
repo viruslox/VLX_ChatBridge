@@ -268,5 +268,67 @@ Add Browser Sources in OBS pointing to the local server (e.g., `http://localhost
 *   `vlx.join` : Bot joins your voice channel and starts the SRT stream.
 *   `vlx.leave`: Bot stops streaming and disconnects.
 
+## Twitch OAuth2 Credentials and Token Configuration
+
+VLX_ChatBridge utilizes the modern Twitch API (Helix) and IRC interfaces. To ensure security and stability, the system uses an **automatic token renewal** mechanism backed by a local database. This means you will only need to generate your tokens manually **once**, and the system will keep them valid indefinitely.
+
+You will need two sets of credentials: the Application credentials and the User Tokens (one for your main broadcaster channel and one for the Bot).
+
+### Step 1: Create the Twitch Application (Client ID & Secret)
+These credentials identify your software on Twitch's servers.
+1. Go to the [Twitch Developer Console](https://dev.twitch.tv/console) and log in.
+2. Click on **"Register Your Application"**.
+3. Choose a name for your app (e.g., `VLX_ChatBridge_App`).
+4. In **OAuth Redirect URLs**, enter: `http://localhost`
+5. In **Category**, select `Chat Bot`.
+6. Click "Create". Once created, click "Manage" to get your **Client ID** and generate a **Client Secret**.
+7. Insert these two values into the `vlx_chatbridge.conf` file under the `twitch` section.
+
+### Step 2: Generate Tokens (Access & Refresh)
+ChatBridge requires explicit authorization to act as both a Bot and the channel owner (e.g., to delete messages for the Auto-Delete feature).
+
+The fastest way to generate the initial tokens is by using a secure site like [Twitch Token Generator](https://twitchtokengenerator.com/):
+1. Go to the site and scroll down to the **"Custom Scope Token"** section.
+2. You will need to generate **TWO** distinct tokens. Log in to Twitch first with your **Bot** account, and then repeat the process with your **Broadcaster** account (your main channel).
+
+#### Required Permissions (Scopes)
+Select the following boxes with extreme care. It is highly recommended to include all these scopes to ensure compatibility with moderation features and future expansions of the bridge:
+
+**For the BOT account (e.g., VirusRoboLox):**
+Check these boxes, then click "Generate Token" while logged in with the bot profile:
+* `chat:read` (Required to read commands)
+* `chat:edit` (Required to reply in chat)
+* `channel:moderate` (Required for basic moderation actions)
+* `whispers:read` and `whispers:edit` (If the bot uses whispers)
+
+**For the BROADCASTER account (Your main channel):**
+Return to the site, check these boxes, and log in with your main account:
+* `moderator:manage:chat_messages` (**REQUIRED** for the Auto-Delete command feature to work)
+* `channel:read:redemptions` (To intercept Channel Points)
+* `channel:manage:broadcast` (To update stream info via commands)
+* `channel:read:subscriptions` (To intercept subs via API)
+* `moderation:read` (To read chat state)
+* `chat:read` and `chat:edit` (For security fallback)
+
+*Note: Once generated, the site will provide two long strings for each account: an `ACCESS TOKEN` and a `REFRESH TOKEN`. Copy them and keep them safe.*
+
+### Step 3: Database Insertion (Automatic Renewal)
+To enable automatic renewal, you must insert these initial tokens into the ChatBridge SQLite database (`chatbridge.db` or your configured database).
+Open the database (via terminal with `sqlite3` or using a GUI tool like DB Browser for SQLite) and execute this query using your data:
+
+```sql
+-- Insert Broadcaster (Owner) Token
+INSERT OR REPLACE INTO twitch_credentials (user_id, access_token, refresh_token, expires_at) 
+VALUES ('BROADCASTER_NUMERIC_ID', 'BROADCASTER_ACCESS_TOKEN', 'BROADCASTER_REFRESH_TOKEN', '2030-01-01 00:00:00');
+
+-- Insert Bot Token
+INSERT OR REPLACE INTO twitch_credentials (user_id, access_token, refresh_token, expires_at) 
+VALUES ('BOT_NUMERIC_ID', 'BOT_ACCESS_TOKEN', 'BOT_REFRESH_TOKEN', '2030-01-01 00:00:00');
+```
+
+(Tip: You can find Twitch account numeric IDs using free sites like Twitch Insights or StreamWeasels).
+
+Once inserted, make sure your vlx_chatbridge.conf file has the bot_id: "BOT_NUMERIC_ID" entry configured. From this moment on, ChatBridge will manage the tokens completely autonomously, silently renewing them before they expire. You will never have to repeat this procedure!
+
 ## License
 This project is licensed under the GNU General Public License v3.0. See the LICENSE file for details.
