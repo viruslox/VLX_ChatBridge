@@ -61,6 +61,9 @@ youtube: # Leave empty to disable YouTube module
 # discord -> audio sent via discord module (to voice channel) # streaming -> audio sent via streaming  module (SRT) 
 overlay:
   enable: yes
+  gps:    # gps_overlay.html
+    html: yes
+    event_type: "gps"  # Configurable listener target for telemetry payloads
   emotes: # emotes_overlay.html
     html: yes
   alerts: # alerts_overlay.html
@@ -73,8 +76,7 @@ overlay:
     discord: yes
     streaming: yes
     volume: 75
-  scenes: # scenes_overlay.html (configured for websocket events)
-    enable: yes
+  scenes: # scenes_overlay.html ("owner chat commands")
     html: yes
     discord: yes
     streaming: yes

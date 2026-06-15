@@ -15,7 +15,9 @@ function connect() {
     socket.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
-            if (data.type === 'emote_wall' && data.emotes) {
+            if (data.type !== 'emote_wall') return;
+
+            if (data.emotes) {
                 spawnEmotes(data.emotes);
             }
         } catch (e) {

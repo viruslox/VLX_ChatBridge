@@ -96,6 +96,7 @@ type ChatAlertPayload struct {
 	MediaType     string `json:"media_type"`
 	Command       string `json:"command,omitempty"`
 	IsBroadcaster bool   `json:"is_broadcaster,omitempty"`
+	IsOwnerCommand bool  `json:"is_owner_command"`
 }
 
 type EmoteWallPayload struct {
@@ -783,11 +784,12 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 	}
 
 	payload := ChatAlertPayload{
-		Type:          "sound_command",
-		Filename:      lookup.cmdData.Filename,
-		MediaType:     lookup.cmdData.MediaType,
-		Command:       "!" + commandName,
-		IsBroadcaster: isBroadcaster,
+		Type:           "sound_command",
+		Filename:       lookup.cmdData.Filename,
+		MediaType:      lookup.cmdData.MediaType,
+		Command:        "!" + commandName,
+		IsBroadcaster:  isBroadcaster,
+		IsOwnerCommand: lookup.cmdData.IsBroadcasterOnly,
 	}
 
 

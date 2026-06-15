@@ -19,10 +19,6 @@ compressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
 compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
 compressor.connect(audioCtx.destination);
 
-const videoElement = document.getElementById('command-video');
-const videoSource = audioCtx.createMediaElementSource(videoElement);
-videoSource.connect(compressor);
-
 function connect() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
@@ -44,10 +40,11 @@ function connect() {
     socket.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
-            if (data.type === 'sound_command') {
-                mediaQueue.push(data);
-                processQueue();
-            }
+            if (data.type !== 'sound_command') return;
+            if (data.is_owner_command === true) return;
+
+            mediaQueue.push(data);
+            processQueue();
         } catch (err) {
             console.error("[Error] Failed to parse incoming message:", err);
         }
@@ -75,60 +72,70 @@ function processQueue() {
 
 function playAudio(src) {
     console.log("[Playback] Starting AUDIO:", src);
-    const audio = new Audio(src);
+    const audio = document.createElement('audio');
+    audio.src = src;
     audio.crossOrigin = "anonymous";
-    audio.volume = masterVolume; // Apply Volume
+    audio.volume = masterVolume;
+
+    document.body.appendChild(audio);
 
     // Connect to AudioContext for compression
     const source = audioCtx.createMediaElementSource(audio);
     source.connect(compressor);
 
-    audio.play().catch(e => {
-        console.warn("[Warning] Audio playback failed:", e);
+    const cleanup = () => {
         source.disconnect();
-        isPlaying = false;
-        processQueue();
-    });
-
-    audio.onended = () => {
-        source.disconnect();
+        audio.remove();
         isPlaying = false;
         processQueue();
     };
 
+    audio.play().catch(e => {
+        console.warn("[Warning] Audio playback failed:", e);
+        cleanup();
+    });
+
+    audio.onended = cleanup;
     audio.onerror = () => {
         console.error("[Error] Failed to load audio resource:", src);
-        source.disconnect();
-        isPlaying = false;
-        processQueue();
+        cleanup();
     };
 }
 
 function playVideo(src) {
     console.log("[Playback] Starting VIDEO:", src);
-    videoElement.src = src;
-    videoElement.style.display = 'block';
-    videoElement.volume = masterVolume; // Apply Volume
+    const video = document.createElement('video');
+    video.src = src;
+    video.crossOrigin = "anonymous";
+    video.volume = masterVolume;
+    video.autoplay = true;
+    video.muted = false;
+    video.style.backgroundColor = 'transparent';
+    video.style.position = 'absolute';
+    video.style.top = '0';
+    video.style.left = '0';
+    video.style.width = '100vw';
+    video.style.height = '100vh';
+    video.style.objectFit = 'contain';
+    video.style.zIndex = '1000';
 
-    videoElement.play().catch(e => {
-        console.warn("[Warning] Video playback failed:", e);
-        videoElement.style.display = 'none';
-        isPlaying = false;
-        processQueue();
-    });
+    document.body.appendChild(video);
 
-    videoElement.onended = () => {
-        videoElement.style.display = 'none';
-        videoElement.src = "";
+    const cleanup = () => {
+        video.remove();
         isPlaying = false;
         processQueue();
     };
 
-    videoElement.onerror = () => {
+    video.play().catch(e => {
+        console.warn("[Warning] Video playback failed:", e);
+        cleanup();
+    });
+
+    video.onended = cleanup;
+    video.onerror = () => {
         console.error("[Error] Failed to load video resource:", src);
-        videoElement.style.display = 'none';
-        isPlaying = false;
-        processQueue();
+        cleanup();
     };
 }
 
