@@ -1,6 +1,11 @@
-const videoWrapper = document.getElementById('video-wrapper');
-const videoElement = document.getElementById('scenes-video');
 let basePath = '';
+const mediaQueue = [];
+let isPlaying = false;
+
+// Calculate master volume (0.0 to 1.0)
+const masterVolume = (window.VLX_CONFIG && typeof window.VLX_CONFIG.VOLUME === 'number')
+    ? (window.VLX_CONFIG.VOLUME / 100)
+    : 1.0;
 
 function connect() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -23,12 +28,10 @@ function connect() {
             
             if (data.type === 'scene_change') {
                 console.log("[Scene Overlay] Scene change requested:", data.scene_name);
-                // Currently doing nothing visually to the DOM specifically for generic scene names.
-                // You can add logic here if you want to switch CSS classes, hide/show things
-                // based on data.scene_name (e.g. 'BRB', 'Game', etc.)
             }
-            else if (data.type === 'sound_command' && data.media_type === 'video') {
-                playVideo(`${basePath}/static/chat/${data.filename}`);
+            else if (data.type === 'sound_command' && data.is_owner_command === true) {
+                mediaQueue.push(data);
+                processQueue();
             }
         } catch (err) {
             console.error("[Scene Overlay] Parsing error:", err);
@@ -36,33 +39,82 @@ function connect() {
     };
 }
 
-function playVideo(src) {
-    if (videoWrapper.style.display === 'block') return;
+function processQueue() {
+    if (isPlaying || mediaQueue.length === 0) return;
 
-    videoElement.src = src;
-    videoWrapper.style.display = 'block';
-    
-    setTimeout(() => {
-        videoWrapper.style.opacity = '1';
-    }, 50);
+    isPlaying = true;
+    const item = mediaQueue.shift();
+    const src = `${basePath}/static/chat/${item.filename}`;
 
-    videoElement.play().catch(e => {
-        console.error("[Scene Overlay] Playback failed:", e);
-        closeVideo();
+    if (item.media_type === 'video') {
+        playVideo(src);
+    } else {
+        playAudio(src);
+    }
+}
+
+function playAudio(src) {
+    console.log("[Playback] Starting AUDIO:", src);
+    const audio = document.createElement('audio');
+    audio.src = src;
+    audio.crossOrigin = "anonymous";
+    audio.volume = masterVolume;
+
+    document.body.appendChild(audio);
+
+    const cleanup = () => {
+        audio.remove();
+        isPlaying = false;
+        processQueue();
+    };
+
+    audio.play().catch(e => {
+        console.warn("[Warning] Audio playback failed:", e);
+        cleanup();
     });
 
-    // Spegnimento automatico quando il video finisce
-    videoElement.onended = () => {
-        closeVideo();
+    audio.onended = cleanup;
+    audio.onerror = () => {
+        console.error("[Error] Failed to load audio resource:", src);
+        cleanup();
     };
 }
 
-function closeVideo() {
-    videoWrapper.style.opacity = '0';
-    setTimeout(() => {
-        videoWrapper.style.display = 'none';
-        videoElement.src = "";
-    }, 400);
+function playVideo(src) {
+    console.log("[Playback] Starting VIDEO:", src);
+    const video = document.createElement('video');
+    video.src = src;
+    video.crossOrigin = "anonymous";
+    video.volume = masterVolume;
+    video.autoplay = true;
+    video.muted = false;
+    video.style.backgroundColor = 'transparent';
+    video.style.position = 'absolute';
+    video.style.top = '0';
+    video.style.left = '0';
+    video.style.width = '100vw';
+    video.style.height = '100vh';
+    video.style.objectFit = 'contain';
+    video.style.zIndex = '1000';
+
+    document.body.appendChild(video);
+
+    const cleanup = () => {
+        video.remove();
+        isPlaying = false;
+        processQueue();
+    };
+
+    video.play().catch(e => {
+        console.warn("[Warning] Video playback failed:", e);
+        cleanup();
+    });
+
+    video.onended = cleanup;
+    video.onerror = () => {
+        console.error("[Error] Failed to load video resource:", src);
+        cleanup();
+    };
 }
 
 connect();

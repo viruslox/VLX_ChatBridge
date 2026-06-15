@@ -57,6 +57,9 @@ function connect() {
     socket.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
+            if (!data.type || !data.type.startsWith("twitch_")) {
+                return;
+            }
             alertQueue.push(data);
             processQueue();
         } catch (err) {

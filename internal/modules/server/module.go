@@ -69,8 +69,13 @@ func (m *Module) handleGPS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	eventType := m.config.Overlay.GPS.EventType
+	if eventType == "" {
+		eventType = "gps"
+	}
+
 	wsMessage := map[string]interface{}{
-		"type": "gps_update",
+		"type": eventType,
 		"data": payload,
 	}
 

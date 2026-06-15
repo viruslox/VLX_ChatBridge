@@ -99,10 +99,16 @@ type YouTubeMonitorConfig struct {
 
 type OverlayConfig struct {
 	Enable YesNoBool                `yaml:"enable"`
+	GPS    OverlayGPSConfig         `yaml:"gps"`
 	Emotes OverlayEmotesConfig `yaml:"emotes"`
 	Alerts OverlayTargetConfig `yaml:"alerts"`
 	Chat   OverlayTargetConfig `yaml:"chat"`
 	Scenes OverlayScenesConfig `yaml:"scenes"`
+}
+
+type OverlayGPSConfig struct {
+	HTML      YesNoBool `yaml:"html"`
+	EventType string    `yaml:"event_type"`
 }
 
 type OverlayScenesConfig struct {

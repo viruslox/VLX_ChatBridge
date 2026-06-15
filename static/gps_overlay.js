@@ -45,8 +45,12 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 const msg = JSON.parse(event.data);
                 
-                // Filtriamo solo gli eventi GPS inviati dal server
-                if (msg.type === 'gps_update' && msg.data) {
+                const expectedType = (window.VLX_CONFIG && window.VLX_CONFIG.GPS_EVENT_TYPE) || 'gps';
+
+                // Explicitly ignore all other events
+                if (msg.type !== expectedType && msg.type !== 'gps_update') return;
+
+                if (msg.data) {
                     const data = msg.data;
 
                     // Aggiorniamo i valori SOLO se il blocco corrispondente è visibile
