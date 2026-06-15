@@ -57,7 +57,12 @@ function connect() {
     socket.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
-            if (!data.type || !data.type.startsWith("twitch_")) {
+            const validAlertTypes = [
+                "twitch_follow", "twitch_subscribe", "twitch_resubscribe",
+                "twitch_gift_sub", "twitch_cheer", "twitch_raid",
+                "youtube_member", "youtube_super_chat", "youtube_super_sticker", "stream_tip"
+            ];
+            if (!data.type || !validAlertTypes.includes(data.type)) {
                 return;
             }
             alertQueue.push(data);
