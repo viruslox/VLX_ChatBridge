@@ -288,10 +288,12 @@ func (m *Module) serveTemplate(w http.ResponseWriter, r *http.Request, filename 
 		WebsocketPath string
 		AssetPrefix   string
 		Volume        int // Injected volume
+		GPSEventType  string
 	}{
 		WebsocketPath: publicWsPath,
 		AssetPrefix:   publicAssetPrefix,
 		Volume:        vol,
+		GPSEventType:  m.config.Overlay.GPS.EventType,
 	}
 
 	baseDir := m.config.ChatBridgeDIR
