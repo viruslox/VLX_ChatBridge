@@ -41,6 +41,7 @@ type CommandData struct {
 	ZMQTarget         string
 	ZMQEnabled        bool
 	ZMQAction         string
+	ZMQPath           string
 	WebhookURL        string
 	WebhookMethod     string
 	AutoDelete        bool
@@ -169,6 +170,7 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 		var zmqTarget string
 		var zmqEnabled bool
 		var zmqAction string = "set_input_state"
+		var zmqPath string
 		var webhookURL string
 		var webhookMethod string
 		var autoDelete bool
@@ -197,6 +199,8 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 						zmqEnabled = (val == "true" || val == "yes" || val == "1")
 					} else if strings.HasPrefix(line, "Action=") {
 						zmqAction = strings.TrimPrefix(line, "Action=")
+					} else if strings.HasPrefix(line, "Path=") {
+						zmqPath = strings.TrimPrefix(line, "Path=")
 					} else if strings.HasPrefix(line, "AutoDelete=") {
 						val := strings.ToLower(strings.TrimPrefix(line, "AutoDelete="))
 						if val == "true" {
@@ -240,6 +244,7 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 				ZMQTarget:         zmqTarget,
 				ZMQEnabled:        zmqEnabled,
 				ZMQAction:         zmqAction,
+				ZMQPath:           zmqPath,
 				WebhookURL:        webhookURL,
 				WebhookMethod:     webhookMethod,
 				AutoDelete:        autoDelete,
@@ -748,6 +753,7 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 			"action":         lookup.cmdData.ZMQAction,
 			"target":         lookup.cmdData.ZMQTarget,
 			"enabled":        lookup.cmdData.ZMQEnabled,
+			"path":           lookup.cmdData.ZMQPath,
 		}
 		c.hub.BroadcastJSON(payload)
 
