@@ -110,6 +110,7 @@ func (m *Module) controlWriterLoop() {
 				var target string
 				var enabled bool
 				action := "set_input_state" // default
+				var path string
 
 				for _, line := range lines {
 					line = strings.TrimSpace(line)
@@ -120,6 +121,8 @@ func (m *Module) controlWriterLoop() {
 						enabled = (val == "true")
 					} else if strings.HasPrefix(line, "Action=") {
 						action = strings.TrimPrefix(line, "Action=")
+					} else if strings.HasPrefix(line, "Path=") {
+						path = strings.TrimPrefix(line, "Path=")
 					}
 				}
 
@@ -131,7 +134,11 @@ func (m *Module) controlWriterLoop() {
 						Target:    target,
 					}
 					if action == "set_input_state" {
-						parsedEvent.Payload = map[string]interface{}{"enabled": enabled}
+						if path != "" {
+							parsedEvent.Payload = map[string]interface{}{"enabled": enabled, "text": path}
+						} else {
+							parsedEvent.Payload = map[string]interface{}{"enabled": enabled}
+						}
 					} else {
 						parsedEvent.Payload = map[string]interface{}{}
 					}
@@ -145,6 +152,7 @@ func (m *Module) controlWriterLoop() {
 				}
 				target, _ := innerPayload["target"].(string)
 				enabled, _ := innerPayload["enabled"].(bool)
+				path, _ := innerPayload["path"].(string)
 
 				connectorEvent := ConnectorPayload{
 					EventID:   uuid.New().String(),
@@ -153,7 +161,11 @@ func (m *Module) controlWriterLoop() {
 					Target:    target,
 				}
 				if action == "set_input_state" {
-					connectorEvent.Payload = map[string]interface{}{"enabled": enabled}
+					if path != "" {
+						connectorEvent.Payload = map[string]interface{}{"enabled": enabled, "text": path}
+					} else {
+						connectorEvent.Payload = map[string]interface{}{"enabled": enabled}
+					}
 				} else {
 					connectorEvent.Payload = map[string]interface{}{}
 				}
