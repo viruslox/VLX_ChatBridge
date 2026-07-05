@@ -191,7 +191,15 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 				continue
 			}
 
-			if err := json.Unmarshal(contentBytes, &actions); err != nil {
+			var multiAction struct {
+				AutoDelete bool            `json:"auto_delete"`
+				Actions    []ActionPayload `json:"actions"`
+			}
+
+			if err := json.Unmarshal(contentBytes, &multiAction); err == nil && len(multiAction.Actions) > 0 {
+				actions = multiAction.Actions
+				autoDelete = multiAction.AutoDelete
+			} else if err := json.Unmarshal(contentBytes, &actions); err != nil {
 				logger.Warn("Invalid JSON in command file", zap.String("filename", filename), zap.Error(err))
 				continue
 			}
@@ -242,7 +250,16 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 					}
 				}
 			} else {
-				if err := json.Unmarshal(contentBytes, &actions); err == nil && len(actions) > 0 {
+				var multiAction struct {
+					AutoDelete bool            `json:"auto_delete"`
+					Actions    []ActionPayload `json:"actions"`
+				}
+
+				if err := json.Unmarshal(contentBytes, &multiAction); err == nil && len(multiAction.Actions) > 0 {
+					actions = multiAction.Actions
+					autoDelete = multiAction.AutoDelete
+					mediaType = "multi_action"
+				} else if err := json.Unmarshal(contentBytes, &actions); err == nil && len(actions) > 0 {
 					mediaType = "multi_action"
 				} else {
 					continue

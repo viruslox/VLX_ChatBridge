@@ -237,6 +237,19 @@ Body={"action": "increase"}
 #### Stealth Mode (AutoDelete)
 Both `[ZMQ_CONTROL]` and `[WEBHOOK]` files support an `AutoDelete=true` flag. This feature allows you to silently execute commands without cluttering the public chat. When enabled, it leverages dynamically refreshed DB tokens and the Twitch Helix API to instantly delete the invoking chat message.
 
+Multi-action `.json` files also support the stealth mode feature by structuring the file to include an `auto_delete` boolean flag and an `actions` array:
+```json
+{
+  "auto_delete": true,
+  "actions": [
+    {
+      "type": "ipc_control",
+      ...
+    }
+  ]
+}
+```
+
 Example with Stealth Mode:
 ```ini
 [ZMQ_CONTROL]
