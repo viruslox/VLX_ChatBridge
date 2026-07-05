@@ -1,9 +1,11 @@
 package twitch
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,7 +34,8 @@ const (
 	PermissionOwner      = "owner"      // Broadcaster Only
 )
 
-// CommandData holds metadata for media commands
+type ActionPayload map[string]interface{}
+
 type CommandData struct {
 	Filename          string
 	Permission        string
@@ -45,6 +48,7 @@ type CommandData struct {
 	WebhookURL        string
 	WebhookMethod     string
 	AutoDelete        bool
+	Actions           []ActionPayload
 }
 
 type AudioCommandsMap map[string]CommandData
@@ -92,12 +96,12 @@ func (c *ChatClient) UpdateCommands(cmds AudioCommandsMap, anns AnnouncementsMap
 
 // ChatAlertPayload defines the JSON sent to the overlay
 type ChatAlertPayload struct {
-	Type          string `json:"type"`
-	Filename      string `json:"filename"`
-	MediaType     string `json:"media_type"`
-	Command       string `json:"command,omitempty"`
-	IsBroadcaster bool   `json:"is_broadcaster,omitempty"`
-	IsOwnerCommand bool  `json:"is_owner_command"`
+	Type           string `json:"type"`
+	Filename       string `json:"filename"`
+	MediaType      string `json:"media_type"`
+	Command        string `json:"command,omitempty"`
+	IsBroadcaster  bool   `json:"is_broadcaster,omitempty"`
+	IsOwnerCommand bool   `json:"is_owner_command"`
 }
 
 type EmoteWallPayload struct {
@@ -174,12 +178,26 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 		var webhookURL string
 		var webhookMethod string
 		var autoDelete bool
+		var actions []ActionPayload
 
 		switch ext {
 		case ".mp3", ".wav", ".ogg":
 			mediaType = "audio"
 		case ".mp4", ".webm":
 			mediaType = "video"
+		case ".json":
+			contentBytes, err := os.ReadFile(filepath.Join(fullPath, filename))
+			if err != nil {
+				logger.Warn("Failed to read JSON command file", zap.String("filename", filename), zap.Error(err))
+				continue
+			}
+
+			if err := json.Unmarshal(contentBytes, &actions); err != nil {
+				logger.Warn("Invalid JSON in command file", zap.String("filename", filename), zap.Error(err))
+				continue
+			}
+
+			mediaType = "multi_action"
 		case ".txt":
 			contentBytes, err := os.ReadFile(filepath.Join(fullPath, filename))
 			if err != nil {
@@ -248,6 +266,7 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 				WebhookURL:        webhookURL,
 				WebhookMethod:     webhookMethod,
 				AutoDelete:        autoDelete,
+				Actions:           actions,
 			}
 		}
 	}
@@ -452,7 +471,6 @@ func (c *ChatClient) Stop() {
 // Start initiates the Twitch IRC connection.
 func (c *ChatClient) Start() {
 	c.logger.Info("Connecting to Twitch IRC...")
-
 
 	botUsername := c.config.Twitch.Chat.BotUsername
 	botOAuthToken := c.config.Twitch.Chat.BotToken
@@ -714,6 +732,66 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 
 	c.logger.Info("Command triggered", zap.String("command", commandName), zap.String("user", message.User.Name))
 
+	if lookup.cmdData.MediaType == "multi_action" {
+		for _, action := range lookup.cmdData.Actions {
+			actionType, _ := action["type"].(string)
+
+			if actionType == "ipc_control" {
+				action["is_broadcaster"] = isBroadcaster
+				action["command"] = "!" + commandName
+
+				c.hub.BroadcastJSON(action)
+
+				outData, err := json.Marshal(action)
+				if err == nil {
+					select {
+					case events.ControlBroadcastChan <- outData:
+					default:
+					}
+				}
+
+			} else if actionType == "http_request" {
+				go func(reqData ActionPayload) {
+					method, _ := reqData["method"].(string)
+					url, _ := reqData["url"].(string)
+					if method == "" || url == "" {
+						return
+					}
+
+					var reqBody io.Reader
+					if bodyData, ok := reqData["body"]; ok {
+						jsonBody, _ := json.Marshal(bodyData)
+						reqBody = bytes.NewBuffer(jsonBody)
+					}
+
+					req, err := http.NewRequest(method, url, reqBody)
+					if err != nil {
+						c.logger.Error("Failed to create multi_action http request", zap.String("command", commandName), zap.Error(err))
+						return
+					}
+
+					if headers, ok := reqData["headers"].(map[string]interface{}); ok {
+						for k, v := range headers {
+							if valStr, isStr := v.(string); isStr {
+								req.Header.Set(k, valStr)
+							}
+						}
+					}
+
+					resp, err := http.DefaultClient.Do(req)
+					if err != nil {
+						c.logger.Error("Failed to execute multi_action http request", zap.String("command", commandName), zap.Error(err))
+						return
+					}
+					defer resp.Body.Close()
+					
+					c.logger.Info("Multi-action HTTP request fired", zap.String("command", commandName), zap.String("url", url))
+				}(action)
+			}
+		}
+		return
+	}
+
 	if lookup.cmdData.AutoDelete {
 		go func() {
 			reqURL := fmt.Sprintf("https://api.twitch.tv/helix/moderation/chat?broadcaster_id=%s&moderator_id=%s&message_id=%s", message.RoomID, message.RoomID, message.ID)
@@ -797,7 +875,6 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 		IsBroadcaster:  isBroadcaster,
 		IsOwnerCommand: lookup.cmdData.IsBroadcasterOnly,
 	}
-
 
 	htmlEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Chat.HTML)
 	streamingEnabled := bool(c.config.Overlay.Enable) && bool(c.config.Overlay.Chat.Streaming)
