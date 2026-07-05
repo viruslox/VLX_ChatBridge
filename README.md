@@ -190,6 +190,8 @@ connector:
 The server supports a `path_prefix` configuration token that a reverse proxy can strip to enhance security.
 Below is an example of an Apache reverse proxy configuration that properly routes requests, including upgrading WebSocket connections.
 
+**Direct Local Access:** If you access the server directly (e.g., via OBS Browser Source on localhost), the configured `path_prefix` is automatically bypassed. The server dynamically clears this prefix when standard reverse proxy headers (`X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`) are missing, ensuring static assets and WebSockets resolve correctly regardless of the environment.
+
 ```apache
 RewriteCond %{HTTP:Upgrade} websocket [NC]
 RewriteCond %{HTTP:Connection} upgrade [NC]

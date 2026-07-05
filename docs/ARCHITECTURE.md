@@ -29,8 +29,9 @@ The system is composed of six primary, independently configurable modules. These
     *   **Components:**
         *   Handles HTTP routing using a shared `http.ServeMux`.
         *   Serves static frontend files (`/static/`).
-        *   Parses HTML overlay templates to inject dynamic configuration variables.
-        *   Supports reverse proxy setups via a `path_prefix` configuration token.
+        *   Parses HTML overlay templates to inject dynamic configuration variables (e.g., an inline `<script>` block defining `window.VLX_CONFIG` with `{{.WebsocketPath}}` and `{{.AssetPrefix}}`).
+        *   Supports reverse proxy setups via a `path_prefix` configuration token. To ensure correct resolution of absolute paths, the server dynamically clears this prefix for local requests (e.g., OBS Browser Source) when standard proxy headers (`X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`) are absent.
+        *   Utilizes a unified frontend styling approach by merging CSS assets into a single `overlay.css` file. Static asset references in HTML templates are reliably resolved using the dynamic `{{.AssetPrefix}}`.
 4.  **Streaming Module**
     *   **Purpose:** Manages SRT (Secure Reliable Transport) streaming egress.
     *   **Components:**
