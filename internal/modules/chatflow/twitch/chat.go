@@ -82,7 +82,6 @@ type ChatClient struct {
 	broadcasterTokenExpiry time.Time
 }
 
-
 // UpdateCommands safely updates the command and announcement maps at runtime
 func (c *ChatClient) UpdateCommands(cmds AudioCommandsMap, anns AnnouncementsMap) {
 	c.mu.Lock()
@@ -243,7 +242,11 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 					}
 				}
 			} else {
-				continue
+				if err := json.Unmarshal(contentBytes, &actions); err == nil && len(actions) > 0 {
+					mediaType = "multi_action"
+				} else {
+					continue
+				}
 			}
 		default:
 			continue
@@ -385,9 +388,7 @@ func (c *ChatClient) startAnnouncementTimers() {
 							return
 						}
 
-
 						channelToJoin := c.config.Twitch.Chat.ChannelToJoin
-
 
 						c.client.Say(channelToJoin, latestAnn.Content)
 						c.logger.Info("Sent automatic announcement", zap.String("command", latestAnn.CommandName))
@@ -784,7 +785,7 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 						return
 					}
 					defer resp.Body.Close()
-					
+
 					c.logger.Info("Multi-action HTTP request fired", zap.String("command", commandName), zap.String("url", url))
 				}(action)
 			}
