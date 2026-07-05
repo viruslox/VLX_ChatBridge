@@ -750,6 +750,37 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 
 	c.logger.Info("Command triggered", zap.String("command", commandName), zap.String("user", message.User.Name))
 
+	if lookup.cmdData.AutoDelete {
+		go func() {
+			reqURL := fmt.Sprintf("https://api.twitch.tv/helix/moderation/chat?broadcaster_id=%s&moderator_id=%s&message_id=%s", message.RoomID, message.RoomID, message.ID)
+			req, err := http.NewRequest(http.MethodDelete, reqURL, nil)
+			if err != nil {
+				c.logger.Error("Failed to create delete message request", zap.String("command", commandName), zap.Error(err))
+				return
+			}
+
+			authToken, err := c.getValidToken(message.RoomID)
+			if err != nil {
+				c.logger.Error("Failed to get valid broadcaster token. Cannot delete message.", zap.String("command", commandName), zap.Error(err))
+				return
+			}
+
+			req.Header.Set("Authorization", "Bearer "+authToken)
+			req.Header.Set("Client-Id", c.config.Twitch.ClientID)
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				c.logger.Error("Failed to execute delete message request", zap.String("command", commandName), zap.Error(err))
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode >= 400 {
+				c.logger.Error("Twitch API error on delete message", zap.String("command", commandName), zap.Int("status", resp.StatusCode))
+			}
+		}()
+	}
+
 	if lookup.cmdData.MediaType == "multi_action" {
 		for _, action := range lookup.cmdData.Actions {
 			actionType, _ := action["type"].(string)
@@ -808,37 +839,6 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 			}
 		}
 		return
-	}
-
-	if lookup.cmdData.AutoDelete {
-		go func() {
-			reqURL := fmt.Sprintf("https://api.twitch.tv/helix/moderation/chat?broadcaster_id=%s&moderator_id=%s&message_id=%s", message.RoomID, message.RoomID, message.ID)
-			req, err := http.NewRequest(http.MethodDelete, reqURL, nil)
-			if err != nil {
-				c.logger.Error("Failed to create delete message request", zap.String("command", commandName), zap.Error(err))
-				return
-			}
-
-			authToken, err := c.getValidToken(message.RoomID)
-			if err != nil {
-				c.logger.Error("Failed to get valid broadcaster token. Cannot delete message.", zap.String("command", commandName), zap.Error(err))
-				return
-			}
-
-			req.Header.Set("Authorization", "Bearer "+authToken)
-			req.Header.Set("Client-Id", c.config.Twitch.ClientID)
-
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				c.logger.Error("Failed to execute delete message request", zap.String("command", commandName), zap.Error(err))
-				return
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode >= 400 {
-				c.logger.Error("Twitch API error on delete message", zap.String("command", commandName), zap.Int("status", resp.StatusCode))
-			}
-		}()
 	}
 
 	if lookup.cmdData.MediaType == "ipc_control" {
