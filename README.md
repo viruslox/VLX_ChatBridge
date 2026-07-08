@@ -25,7 +25,7 @@ ChatBridge operates as a single binary with six primary, independently configura
 5.  **AudioSource Module (Audio Feed Ingest):**
     *   Ingests external audio feeds via FFmpeg and pipes them directly into the internal audio mixer.
 6.  **Connector Module (IPC Output):**
-    *   High-performance local Inter-Process Communication (IPC) via Unix Domain Sockets for streaming raw PCM audio and JSON control events to `VLX_VisionBridge`.
+    *   High-performance local Inter-Process Communication (IPC) via Unix Domain Sockets for streaming JSON control events to `VLX_VisionBridge`.
 
 ### Hot-Swappable Modules
 All six modules can be enabled or disabled on-the-fly via configuration (`modules` block), allowing the server to act solely as an alert system, an audio bridge, an SRT streamer, an IPC connector, or a combination of them simultaneously.
