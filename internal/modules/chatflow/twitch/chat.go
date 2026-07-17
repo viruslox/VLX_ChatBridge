@@ -85,6 +85,9 @@ type ChatClient struct {
 	presence      *PresenceTracker
 	lottery       *Lottery
 	broadcasterID string // cached numeric ID of the broadcaster channel
+
+	// First-chatter float (emote wall): tracks who has chatted this session.
+	firstChatters *FirstChatterTracker
 }
 
 // UpdateCommands safely updates the command and announcement maps at runtime
@@ -139,6 +142,7 @@ func NewChatClient(cfg *config.Config, hub *websocket.Hub, db *database.DB, comm
 		quit:             make(chan struct{}),
 		presence:         NewPresenceTracker(),
 		lottery:          newLottery(),
+		firstChatters:    NewFirstChatterTracker(),
 	}
 	client.cachedCmdList = client.formatCommandList()
 	return client
@@ -557,6 +561,8 @@ func (c *ChatClient) handlePrivateMessage(message twitch.PrivateMessage) {
 	if c.presence != nil {
 		c.presence.Touch(message.User.Name)
 	}
+	// Float the username the first time this user chats this session.
+	c.handleFirstChatter(message)
 	c.handleEmoteWall(message)
 	c.handleCommand(message)
 }

@@ -159,3 +159,27 @@ body, html {
     border-radius: 6px;
     background-color: #000;
 }
+/* ---- First-chatter floating username (reuses floatUp keyframe) ---- */
+/* Append this block to static/overlay.css. It relies on the existing
+   @keyframes floatUp already defined for .emote. */
+
+.chat-username {
+    position: absolute;
+    bottom: -60px;                 /* start just below the screen, like emotes */
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
+    font-size: 42px;
+    white-space: nowrap;
+    pointer-events: none;
+    color: #ffffff;                /* fallback; overridden inline by chat color */
+    text-shadow:
+        -2px -2px 0 rgba(0,0,0,0.6),
+         2px -2px 0 rgba(0,0,0,0.6),
+        -2px  2px 0 rgba(0,0,0,0.6),
+         2px  2px 0 rgba(0,0,0,0.6),
+         0    0   8px rgba(0,0,0,0.5);   /* outline so any color stays legible */
+    animation-name: floatUp;
+    animation-timing-function: linear;
+    opacity: 0.9;
+    z-index: 30;
+}
