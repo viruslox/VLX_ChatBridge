@@ -122,7 +122,7 @@ func TestFormatCommandList(t *testing.T) {
 		{
 			name:     "Empty commands",
 			commands: make(AudioCommandsMap),
-			expected: "No active commands found.",
+			expected: "Built-in: !followage, !lottery",
 		},
 		{
 			name: "All permission levels",
@@ -132,28 +132,28 @@ func TestFormatCommandList(t *testing.T) {
 				"sub":   {Permission: PermissionSubscriber},
 				"vip":   {Permission: PermissionVIP},
 			},
-			expected: "!bye, !hello / Subscribers: !sub / Vips: !vip",
+			expected: "!bye, !hello / Subscribers: !sub / Vips: !vip / Built-in: !followage, !lottery",
 		},
 		{
 			name: "Only everyone commands",
 			commands: AudioCommandsMap{
 				"hello": {Permission: PermissionEveryone},
 			},
-			expected: "!hello",
+			expected: "!hello / Built-in: !followage, !lottery",
 		},
 		{
 			name: "Only subscriber commands",
 			commands: AudioCommandsMap{
 				"sub": {Permission: PermissionSubscriber},
 			},
-			expected: "Subscribers: !sub",
+			expected: "Subscribers: !sub / Built-in: !followage, !lottery",
 		},
 		{
 			name: "Only vip commands",
 			commands: AudioCommandsMap{
 				"vip": {Permission: PermissionVIP},
 			},
-			expected: "Vips: !vip",
+			expected: "Vips: !vip / Built-in: !followage, !lottery",
 		},
 	}
 

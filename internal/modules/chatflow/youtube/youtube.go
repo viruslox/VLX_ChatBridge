@@ -40,6 +40,7 @@ type Client struct {
 	logger          *zap.Logger
 	limiter         *rate.Limiter // Rate Limiter
 	stopChan        chan struct{}
+	presence        *twitch.PresenceTracker
 }
 
 func NewClient(cfg *config.Config, hub *websocket.Hub, db *database.DB, commands twitch.AudioCommandsMap, logger *zap.Logger) (*Client, error) {
@@ -244,8 +245,11 @@ func (c *Client) updateState(state *database.YouTubeState, response *youtube.Liv
 
 func (c *Client) processMessages(items []*youtube.LiveChatMessage) {
 	for _, item := range items {
-		snippet := item.Snippet
 		author := item.AuthorDetails
+		if c.presence != nil && author != nil {
+			c.presence.Touch(author.DisplayName)
+		}
+		snippet := item.Snippet
 
 		// Handle Super Chats
 		if snippet.SuperChatDetails != nil {
@@ -371,4 +375,13 @@ func (c *Client) broadcast(payload map[string]interface{}) {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
 		go audio.PlayAlert("youtube_alert", fullPath, streamingEnabled, discordEnabled)
 	}
+}
+
+// SetPresence attaches a shared presence tracker so YouTube chat activity is
+// counted as live-watching by features like the lottery.
+func (c *Client) SetPresence(p *twitch.PresenceTracker) {
+	if c == nil {
+		return
+	}
+	c.presence = p
 }
