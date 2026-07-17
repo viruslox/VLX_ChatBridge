@@ -36,6 +36,7 @@ All six modules can be enabled or disabled on-the-fly via configuration (`module
 
 ### ChatFlow Features
 *   **Twitch Integration:** EventSub Webhooks (Follows, Subs, Raids) and IRC Bot with Role-Based Access Control (!commands).
+*   **First-Chatter Float:** Floats the username across the screen the first time each user chats in the current live session, colored to match their Twitch chat name.
 *   **YouTube Integration:** Live polling for Super Chats, Stickers, and Memberships.
 *   **Overlays:** Alerts overlay, Chat Media overlay, Emote Wall, and Scenes overlay.
 *   **Smart Rate Limiting & Persistence:** Token buckets for API quotas and SQLite for state/token management.

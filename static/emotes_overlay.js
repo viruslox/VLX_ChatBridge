@@ -15,10 +15,19 @@ function connect() {
     socket.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
-            if (data.type !== 'emote_wall') return;
 
-            if (data.emotes) {
-                spawnEmotes(data.emotes);
+            if (data.type === 'emote_wall') {
+                if (data.emotes) {
+                    spawnEmotes(data.emotes);
+                }
+                return;
+            }
+
+            if (data.type === 'chat_username') {
+                if (data.username) {
+                    createUsernameElement(data.username, data.color);
+                }
+                return;
             }
         } catch (e) {
             console.error(e);
@@ -57,6 +66,34 @@ function createEmoteElement(url) {
     // remove element after animation
     setTimeout(() => {
         img.remove();
+    }, duration * 1000);
+}
+
+// createUsernameElement floats a first-time chatter's username using the same
+// floatUp motion as emotes. Color comes from the user's chat color (or the
+// Twitch default computed server-side).
+function createUsernameElement(username, color) {
+    const el = document.createElement('div');
+    el.classList.add('chat-username');
+    el.textContent = username;
+
+    if (color) {
+        el.style.color = color;
+    }
+
+    // Random horizontal position (0% - 80% width; a bit tighter than emotes
+    // since text is wider than a 112px emote).
+    const leftPos = Math.random() * 80;
+    el.style.left = leftPos + 'vw';
+
+    // Same duration band as emotes (4s to 8s) so they intermix naturally.
+    const duration = 4 + Math.random() * 4;
+    el.style.animationDuration = duration + 's';
+
+    document.body.appendChild(el);
+
+    setTimeout(() => {
+        el.remove();
     }, duration * 1000);
 }
 
