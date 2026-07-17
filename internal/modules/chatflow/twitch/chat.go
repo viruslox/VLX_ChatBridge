@@ -80,6 +80,11 @@ type ChatClient struct {
 	tokenMu                sync.Mutex
 	broadcasterToken       string
 	broadcasterTokenExpiry time.Time
+
+	// Built-in feature state (lottery / followage / presence).
+	presence      *PresenceTracker
+	lottery       *Lottery
+	broadcasterID string // cached numeric ID of the broadcaster channel
 }
 
 // UpdateCommands safely updates the command and announcement maps at runtime
@@ -132,6 +137,8 @@ func NewChatClient(cfg *config.Config, hub *websocket.Hub, db *database.DB, comm
 		logger:           logger,
 		sayLimiter:       limiter,
 		quit:             make(chan struct{}),
+		presence:         NewPresenceTracker(),
+		lottery:          newLottery(),
 	}
 	client.cachedCmdList = client.formatCommandList()
 	return client
@@ -546,6 +553,10 @@ func (c *ChatClient) Start() {
 }
 
 func (c *ChatClient) handlePrivateMessage(message twitch.PrivateMessage) {
+	// Any chat message is a live-presence signal for the lottery watch-check.
+	if c.presence != nil {
+		c.presence.Touch(message.User.Name)
+	}
 	c.handleEmoteWall(message)
 	c.handleCommand(message)
 }
@@ -640,6 +651,14 @@ func (c *ChatClient) handleCommand(message twitch.PrivateMessage) {
 	// 6. SCENE COMMAND Logic (!scene <name>)
 	if commandName == "scene" {
 		c.handleSceneCommand(message)
+	}
+
+	// 7. BUILT-IN COMMANDS (registered in code, listed in !commands)
+	switch commandName {
+	case BuiltinFollowage:
+		c.handleFollowageCommand(message)
+	case BuiltinLottery:
+		c.handleLotteryCommand(message)
 	}
 }
 
@@ -967,6 +986,14 @@ func (c *ChatClient) formatCommandList() string {
 		sb.WriteString(strings.Join(vips, ", "))
 	}
 
+	// Append built-in commands so they show up under !commands.
+	builtins := []string{"!" + BuiltinFollowage, "!" + BuiltinLottery}
+	if sb.Len() > 0 {
+		sb.WriteString(" / ")
+	}
+	sb.WriteString("Built-in: ")
+	sb.WriteString(strings.Join(builtins, ", "))
+
 	response := sb.String()
 	if response == "" {
 		response = "No active commands found."
@@ -1001,4 +1028,10 @@ func (c *ChatClient) hasPermission(user twitch.User, requiredLevel string) bool 
 	default:
 		return false
 	}
+}
+
+// Presence returns the shared presence tracker (used to share live-activity
+// signals with other ingestion paths such as YouTube).
+func (c *ChatClient) Presence() *PresenceTracker {
+	return c.presence
 }

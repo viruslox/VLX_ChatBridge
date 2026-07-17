@@ -277,6 +277,14 @@ systemctl --user start vlx_chatbridge.service
 ### OBS Integration
 Add Browser Sources in OBS pointing to the local server (e.g., `http://localhost:8000/static/alerts_overlay.html`).
 
+### Built-in Chat Commands
+ChatBridge natively supports several built-in commands for stream interaction.
+*   `!followage`: Displays how long a user has been following the channel. Requires the `moderator:read:followers` scope on the broadcaster token.
+*   `!lottery`: A complete watch-checked lottery system.
+    *   **Broadcaster/Mod Commands:** `!lottery start [time]` (e.g. `!lottery start 10m` to require the winner to be actively watching for the last 10 minutes), `!lottery draw`, `!lottery end`.
+    *   **User Commands:** `!lottery join`.
+    *   The watch-check evaluates chat activity across both Twitch and YouTube seamlessly using a shared presence tracker.
+
 ### Discord Commands
 *   `vlx.join` : Bot joins your voice channel and starts the SRT stream.
 *   `vlx.leave`: Bot stops streaming and disconnects.
@@ -317,6 +325,7 @@ Check these boxes, then click "Generate Token" while logged in with the bot prof
 **For the BROADCASTER account (Your main channel):**
 Return to the site, check these boxes, and log in with your main account:
 * `moderator:manage:chat_messages` (**REQUIRED** for the Auto-Delete command feature to work)
+* `moderator:read:followers` (**REQUIRED** for the !followage command)
 * `channel:read:redemptions` (To intercept Channel Points)
 * `channel:manage:broadcast` (To update stream info via commands)
 * `channel:read:subscriptions` (To intercept subs via API)

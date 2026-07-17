@@ -162,6 +162,10 @@ func (m *Module) Start() error {
 		m.youtubeClient.Start()
 	}
 
+	if m.chatClient != nil && m.youtubeClient != nil {
+		m.youtubeClient.SetPresence(m.chatClient.Presence())
+	}
+
 	log.Println("[ChatFlow] Started successfully.")
 	return nil
 }
