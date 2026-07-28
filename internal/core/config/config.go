@@ -44,6 +44,7 @@ type Config struct {
 	Streaming   StreamingConfig   `yaml:"streaming"`
 	AudioSource AudioSourceConfig `yaml:"audio_source"`
 	Connector   ConnectorConfig   `yaml:"connector"`
+	Announce    AnnounceConfig    `yaml:"announce"`
 }
 
 type ModulesConfig struct {
@@ -157,6 +158,23 @@ type AudioSourceConfig struct {
 type ConnectorConfig struct {
 	IPCControlOut YesNoBool `yaml:"ipc_control_out"`
 	ControlSocket string    `yaml:"control_socket"`
+}
+
+type AnnounceConfig struct {
+	Enable          YesNoBool              `yaml:"enable"`
+	WebhookURL      string                 `yaml:"webhook_url"`
+	Username        string                 `yaml:"username"`
+	AvatarURL       string                 `yaml:"avatar_url"`
+	CombineWindow   int                    `yaml:"combine_window"` // seconds
+	MessageTemplate string                 `yaml:"message_template"`
+	EndEnable       YesNoBool              `yaml:"end_enable"`
+	EndTemplate     string                 `yaml:"end_message_template"`
+	Twitch          AnnouncePlatformConfig `yaml:"twitch"`
+	YouTube         AnnouncePlatformConfig `yaml:"youtube"`
+}
+
+type AnnouncePlatformConfig struct {
+	Enable YesNoBool `yaml:"enable"`
 }
 
 // LoadConfig reads and parses the configuration file at the given path.

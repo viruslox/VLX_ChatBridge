@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/modules/chatflow/announcer"
 	"VLX_ChatBridge/internal/modules/chatflow/audio"
 	"path/filepath"
 	"VLX_ChatBridge/internal/modules/chatflow/database"
@@ -29,8 +30,10 @@ const (
 	EventSubSubscribe  = "channel.subscribe"
 	EventSubSubGift    = "channel.subscription.gift"
 	EventSubSubMessage = "channel.subscription.message"
-	EventSubCheer      = "channel.cheer"
-	EventSubRaid       = "channel.raid"
+	EventSubCheer         = "channel.cheer"
+	EventSubRaid          = "channel.raid"
+	EventSubStreamOnline  = "stream.online"
+	EventSubStreamOffline = "stream.offline"
 )
 
 // Client manages Twitch API interactions and EventSub webhooks.
@@ -41,7 +44,11 @@ type Client struct {
 	db          *database.DB
 	selfBaseURL string
 	logger      *zap.Logger
+	announcer   *announcer.Announcer
 }
+
+// SetAnnouncer attaches the go-live/end announcer (optional).
+func (c *Client) SetAnnouncer(a *announcer.Announcer) { c.announcer = a }
 
 // setupHelixClient initializes the Helix client and sets the app access token.
 func setupHelixClient(cfg config.TwitchConfig) (*helix.Client, error) {
@@ -243,6 +250,8 @@ func (c *Client) StartMonitoring(channelLogins []string) error {
 			c.subscribeToEvent(u.ID, EventSubSubGift, "1", callbackURL, userSubs[EventSubSubGift])
 			c.subscribeToEvent(u.ID, EventSubSubMessage, "1", callbackURL, userSubs[EventSubSubMessage])
 			c.subscribeToEvent(u.ID, EventSubCheer, "1", callbackURL, userSubs[EventSubCheer])
+			c.subscribeToEvent(u.ID, EventSubStreamOnline, "1", callbackURL, userSubs[EventSubStreamOnline])
+			c.subscribeToEvent(u.ID, EventSubStreamOffline, "1", callbackURL, userSubs[EventSubStreamOffline])
 		}(user)
 	}
 	wg.Wait()
@@ -557,6 +566,51 @@ func (c *Client) handleCheerEvent(eventData json.RawMessage) (map[string]interfa
 	}, nil
 }
 
+// handleStreamOnline enriches the go-live event with the current stream title
+// and category, then notifies the announcer.
+func (c *Client) handleStreamOnline(eventData json.RawMessage) {
+	var e struct {
+		BroadcasterUserID   string `json:"broadcaster_user_id"`
+		BroadcasterUserName string `json:"broadcaster_user_login"`
+	}
+	if err := json.Unmarshal(eventData, &e); err != nil {
+		c.logger.Error("Failed to parse stream.online", zap.Error(err))
+		return
+	}
+
+	login := e.BroadcasterUserName
+	title := ""
+	game := ""
+
+	// Enrich: fetch title + category. Best-effort; announce proceeds without it.
+	info, err := c.helix.GetChannelInformation(&helix.GetChannelInformationParams{
+		BroadcasterIDs: []string{e.BroadcasterUserID},
+	})
+	if err == nil && info != nil && len(info.Data.Channels) > 0 {
+		ch := info.Data.Channels[0]
+		title = ch.Title
+		game = ch.GameName
+		if login == "" {
+			login = ch.BroadcasterName
+		}
+	} else if err != nil {
+		c.logger.Warn("stream.online enrichment failed", zap.Error(err))
+	}
+
+	fullTitle := title
+	if game != "" {
+		fullTitle = fmt.Sprintf("%s [%s]", title, game)
+	}
+
+	if c.announcer != nil {
+		c.announcer.NotifyLive(
+			announcer.PlatformTwitch,
+			fullTitle,
+			"https://twitch.tv/"+login,
+		)
+	}
+}
+
 // handleRaidEvent processes raid event payloads.
 func (c *Client) handleRaidEvent(eventData json.RawMessage) (map[string]interface{}, error) {
 	var e helix.EventSubChannelRaidEvent
@@ -588,6 +642,14 @@ func (c *Client) handleNotification(eventType string, eventData json.RawMessage)
 		payload, err = c.handleCheerEvent(eventData)
 	case EventSubRaid:
 		payload, err = c.handleRaidEvent(eventData)
+	case EventSubStreamOnline:
+		c.handleStreamOnline(eventData)
+		return
+	case EventSubStreamOffline:
+		if c.announcer != nil {
+			c.announcer.NotifyEnd(announcer.PlatformTwitch)
+		}
+		return
 	}
 
 	if err != nil {
