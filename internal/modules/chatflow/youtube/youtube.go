@@ -152,6 +152,7 @@ func (c *Client) ensureLiveChatID() error {
 			announcer.PlatformYouTube,
 			c.lastVideoTitle,
 			"https://youtube.com/watch?v="+videoID,
+			videoID,
 		)
 	}
 

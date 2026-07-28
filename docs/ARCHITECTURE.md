@@ -13,7 +13,7 @@ The system is composed of six primary, independently configurable modules. These
     *   **Purpose:** Manages event ingestion, logic, and visual overlay coordination.
     *   **Components:**
         *   Twitch integration (EventSub webhooks for Follows/Subs/Raids and IRC client via `go-twitch-irc` for chat commands).
-        *   Cross-platform Discord Go-Live Announcer utilizing Discord webhooks for live/end notifications.
+        *   Cross-platform Discord Go-Live Announcer utilizing Discord webhooks for live/end notifications (features SQLite-backed cross-restart deduplication and rich embed support).
         *   First-Chatter tracker that floats a user's name on screen when they send their first message in a live session.
         *   YouTube integration (Live polling for Super Chats, Stickers, and Memberships).
         *   Shared user presence tracker (`PresenceTracker`) across Twitch and YouTube to determine if a user is actively watching the live stream.
@@ -83,6 +83,7 @@ The primary database schema relies on an SQLite file (`chatbridge.db` located in
 *   `twitch_credentials`
 *   `twitch_subscriptions`
 *   `youtube_state`
+*   `announce_log`
 
 The application interacts with SQLite using `database/sql` and the `github.com/mattn/go-sqlite3` driver.
 

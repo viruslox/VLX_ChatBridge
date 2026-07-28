@@ -136,6 +136,15 @@ func (m *Module) Start() error {
 		logger.Warn("Announcements scan failed", zap.Error(err))
 	}
 
+	// Fail-fast validation (point 4): a misconfigured webhook is a silent failure otherwise.
+	if bool(m.config.Announce.Enable) {
+		u := m.config.Announce.WebhookURL
+		if u == "" || !strings.HasPrefix(u, "https://discord.com/api/webhooks/") {
+			logger.Warn("Announce is enabled but webhook_url is empty or not a Discord webhook URL; announcements will not be sent",
+				zap.String("webhook_url", u))
+		}
+	}
+
 	ann := announcer.New(announcer.Config{
 		Enable:          bool(m.config.Announce.Enable),
 		WebhookURL:      m.config.Announce.WebhookURL,
@@ -147,7 +156,16 @@ func (m *Module) Start() error {
 		MessageTemplate: m.config.Announce.MessageTemplate,
 		EndEnable:       bool(m.config.Announce.EndEnable),
 		EndTemplate:     m.config.Announce.EndTemplate,
+		EmbedEnable:     bool(m.config.Announce.EmbedEnable),
 	}, logger)
+
+	// Cross-restart de-dup (point 6): persist announced streams and prune old rows.
+	if m.db != nil {
+		ann.SetStore(m.db)
+		if err := m.db.PruneAnnounceLog(7 * 24 * time.Hour); err != nil {
+			logger.Warn("Failed to prune announce_log", zap.Error(err))
+		}
+	}
 
 	twitchClient, err := twitch.NewClient(m.config, []string{m.config.Twitch.ChannelName}, m.config.Server.BaseURL, hub, m.db, logger)
 	if err != nil {
