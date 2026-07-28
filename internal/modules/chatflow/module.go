@@ -9,9 +9,11 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"VLX_ChatBridge/internal/core/config"
 	"VLX_ChatBridge/internal/core/module"
+	"VLX_ChatBridge/internal/modules/chatflow/announcer"
 	"VLX_ChatBridge/internal/modules/chatflow/audio"
 	"VLX_ChatBridge/internal/modules/chatflow/database"
 	"VLX_ChatBridge/internal/modules/chatflow/twitch"
@@ -134,6 +136,19 @@ func (m *Module) Start() error {
 		logger.Warn("Announcements scan failed", zap.Error(err))
 	}
 
+	ann := announcer.New(announcer.Config{
+		Enable:          bool(m.config.Announce.Enable),
+		WebhookURL:      m.config.Announce.WebhookURL,
+		Username:        m.config.Announce.Username,
+		AvatarURL:       m.config.Announce.AvatarURL,
+		CombineWindow:   time.Duration(m.config.Announce.CombineWindow) * time.Second,
+		TwitchEnabled:   bool(m.config.Announce.Twitch.Enable),
+		YouTubeEnabled:  bool(m.config.Announce.YouTube.Enable),
+		MessageTemplate: m.config.Announce.MessageTemplate,
+		EndEnable:       bool(m.config.Announce.EndEnable),
+		EndTemplate:     m.config.Announce.EndTemplate,
+	}, logger)
+
 	twitchClient, err := twitch.NewClient(m.config, []string{m.config.Twitch.ChannelName}, m.config.Server.BaseURL, hub, m.db, logger)
 	if err != nil {
 		logger.Error("Twitch Client init failed", zap.Error(err))
@@ -141,6 +156,7 @@ func (m *Module) Start() error {
 	m.twitchClient = twitchClient
 
 	if m.twitchClient != nil {
+		m.twitchClient.SetAnnouncer(ann)
 		if err := m.twitchClient.StartMonitoring([]string{m.config.Twitch.ChannelName}); err != nil {
 			logger.Error("Twitch monitoring failed", zap.Error(err))
 		}
@@ -159,6 +175,7 @@ func (m *Module) Start() error {
 	}
 	m.youtubeClient = youtubeClient
 	if m.youtubeClient != nil {
+		m.youtubeClient.SetAnnouncer(ann)
 		m.youtubeClient.Start()
 	}
 

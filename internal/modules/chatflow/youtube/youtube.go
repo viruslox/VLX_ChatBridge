@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"VLX_ChatBridge/internal/core/config"
 	"VLX_ChatBridge/internal/core/events"
+	"VLX_ChatBridge/internal/modules/chatflow/announcer"
 	"VLX_ChatBridge/internal/modules/chatflow/audio"
 	"path/filepath"
 	"VLX_ChatBridge/internal/modules/chatflow/database"
@@ -21,6 +23,11 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 )
+
+// ErrNoActiveStream is returned by fetchActiveVideoID when the channel has no
+// active live broadcast. Used by end-detection to avoid false positives from
+// transient API errors (sentinel instead of substring matching).
+var ErrNoActiveStream = errors.New("no active live stream")
 
 const (
 	MinPollingInterval     = 5
@@ -41,6 +48,16 @@ type Client struct {
 	limiter         *rate.Limiter // Rate Limiter
 	stopChan        chan struct{}
 	presence        *twitch.PresenceTracker
+	announcer       *announcer.Announcer
+	lastVideoTitle  string
+}
+
+// SetAnnouncer attaches the go-live/end announcer (optional).
+func (c *Client) SetAnnouncer(a *announcer.Announcer) {
+	if c == nil {
+		return
+	}
+	c.announcer = a
 }
 
 func NewClient(cfg *config.Config, hub *websocket.Hub, db *database.DB, commands twitch.AudioCommandsMap, logger *zap.Logger) (*Client, error) {
@@ -130,11 +147,19 @@ func (c *Client) ensureLiveChatID() error {
 		return fmt.Errorf("failed to save state to DB: %w", err)
 	}
 
+	if c.announcer != nil {
+		c.announcer.NotifyLive(
+			announcer.PlatformYouTube,
+			c.lastVideoTitle,
+			"https://youtube.com/watch?v="+videoID,
+		)
+	}
+
 	return nil
 }
 
 func (c *Client) fetchLiveChatID(videoID string) (string, error) {
-	videoCall := c.service.Videos.List([]string{"liveStreamingDetails"}).Id(videoID)
+	videoCall := c.service.Videos.List([]string{"liveStreamingDetails", "snippet"}).Id(videoID)
 	videoResponse, err := videoCall.Do()
 	if err != nil {
 		return "", fmt.Errorf("videos API failed: %w", err)
@@ -144,12 +169,28 @@ func (c *Client) fetchLiveChatID(videoID string) (string, error) {
 		return "", fmt.Errorf("video details not found for ID %s", videoID)
 	}
 
+	if snip := videoResponse.Items[0].Snippet; snip != nil {
+		c.lastVideoTitle = snip.Title
+	}
+
 	details := videoResponse.Items[0].LiveStreamingDetails
 	if details == nil || details.ActiveLiveChatId == "" {
 		return "", fmt.Errorf("live stream exists but has no active chat")
 	}
 
 	return details.ActiveLiveChatId, nil
+}
+
+// confirmStreamEnded re-checks whether the channel still has an active live
+// stream. Returns true only when the API confirms no active broadcast (sentinel
+// ErrNoActiveStream), so a transient chat-poll error does not false-positive an
+// end announce.
+func (c *Client) confirmStreamEnded() bool {
+	if err := c.limiter.Wait(context.Background()); err != nil {
+		return false
+	}
+	_, err := c.fetchActiveVideoID()
+	return errors.Is(err, ErrNoActiveStream)
 }
 
 func (c *Client) fetchActiveVideoID() (string, error) {
@@ -165,7 +206,7 @@ func (c *Client) fetchActiveVideoID() (string, error) {
 	}
 
 	if len(response.Items) == 0 {
-		return "", fmt.Errorf("no active live stream found for channel %s", c.channelID)
+		return "", fmt.Errorf("channel %s: %w", c.channelID, ErrNoActiveStream)
 	}
 
 	return response.Items[0].Id.VideoId, nil
@@ -183,7 +224,51 @@ func (c *Client) startPolling() {
 		case <-ticker.C:
 			if err := c.pollChat(); err != nil {
 				c.logger.Error("YouTube polling cycle failed", zap.Error(err))
+				if c.confirmStreamEnded() {
+					c.logger.Info("YouTube live stream ended; announcing and re-arming")
+					if c.announcer != nil {
+						c.announcer.NotifyEnd(announcer.PlatformYouTube)
+					}
+					// Invalidate DB state so a later go-live re-arms cleanly.
+					c.db.UpsertYouTubeState(&database.YouTubeState{
+						ChannelID:  c.channelID,
+						LiveChatID: sql.NullString{Valid: false},
+						UpdatedAt:  time.Now(),
+					})
+					// Auto-reinit: wait for the next live without a process restart.
+					go c.reinitLoop()
+					return
+				}
 			}
+		}
+	}
+}
+
+// reinitLoop waits (respecting stopChan) until a new live stream is detected,
+// then restarts polling. This lets YouTube re-announce a subsequent go-live in
+// the same process lifetime.
+func (c *Client) reinitLoop() {
+	// Re-detection cadence: reuse the polling interval but never hammer the API.
+	interval := c.pollingInterval
+	if interval < 15*time.Second {
+		interval = 15 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.stopChan:
+			c.logger.Info("Stopping YouTube re-init loop")
+			return
+		case <-ticker.C:
+			if err := c.ensureLiveChatID(); err != nil {
+				// Not live yet (or transient); keep waiting quietly.
+				continue
+			}
+			c.logger.Info("YouTube live re-detected. Resuming polling engine.")
+			go c.startPolling()
+			return
 		}
 	}
 }

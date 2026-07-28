@@ -114,3 +114,23 @@ connector:
   # Requires connector_enabled: yes in modules block
   ipc_control_out: yes
   control_socket: "/tmp/vlx_control.sock"
+
+# Discord go-live / stream-end announcement (webhook-based, fire-and-forget).
+# Go-live fires when Twitch and/or YouTube confirm live. If both go live within
+# combine_window seconds, they are merged into a single message.
+# Stream-end fires immediately per-platform (no coalescing).
+announce:
+  enable: no
+  webhook_url: "https://discord.com/api/webhooks/<id>/<token>"
+  username: "VLX Live"      # webhook display-name override (optional)
+  avatar_url: ""            # webhook avatar override; empty = webhook default
+  combine_window: 45        # seconds to wait for a 2nd platform before sending
+  # Go-live placeholders: {platforms} {title} {url}
+  message_template: "🔴 Live now on {platforms}: {title}\n{url}"
+  end_enable: no
+  # End placeholders: {platform} {url}
+  end_message_template: "⚫ {platform} stream has ended."
+  twitch:
+    enable: yes
+  youtube:
+    enable: yes

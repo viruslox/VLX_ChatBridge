@@ -13,6 +13,7 @@ ChatBridge operates as a single binary with six primary, independently configura
 1.  **ChatFlow Module (Event Management & Overlays):**
     *   Ingests events via Twitch EventSub Webhooks and YouTube API Polling.
     *   Manages visual alerts, media commands via chat, and emote wall physics.
+    *   Cross-platform Discord Go-Live Announcer utilizing Discord webhooks for live/end notifications.
     *   Depends on Twitch, YouTube, and Overlay configurations.
 2.  **AudioBridge Module (Audio Routing & Discord):**
     *   Connects to Discord voice channels.
