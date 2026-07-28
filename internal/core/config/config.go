@@ -169,6 +169,7 @@ type AnnounceConfig struct {
 	MessageTemplate string                 `yaml:"message_template"`
 	EndEnable       YesNoBool              `yaml:"end_enable"`
 	EndTemplate     string                 `yaml:"end_message_template"`
+	EmbedEnable     YesNoBool              `yaml:"embed_enable"`
 	Twitch          AnnouncePlatformConfig `yaml:"twitch"`
 	YouTube         AnnouncePlatformConfig `yaml:"youtube"`
 }

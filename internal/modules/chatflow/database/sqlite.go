@@ -72,6 +72,17 @@ func NewConnection(cfg config.DatabaseConfig, logger *zap.Logger) (*DB, error) {
 		return nil, fmt.Errorf("failed to ping DB: %w", err)
 	}
 
+	if _, err := sqlDB.Exec(`
+		CREATE TABLE IF NOT EXISTS announce_log (
+			platform TEXT NOT NULL,
+			stream_id TEXT NOT NULL,
+			announced_at DATETIME NOT NULL,
+			PRIMARY KEY (platform, stream_id)
+		);`); err != nil {
+		sqlDB.Close()
+		return nil, fmt.Errorf("failed to ensure announce_log table: %w", err)
+	}
+
 	logger.Info("Database connection established")
 	return &DB{sql: sqlDB, logger: logger}, nil
 }
@@ -170,6 +181,51 @@ func (db *DB) GetEnabledSubscriptionsByUsers(userIDs []string) (map[string]map[s
 		result[userID][eventType] = true
 	}
 	return result, rows.Err()
+}
+
+// AnnounceLog maps to the 'announce_log' table (cross-restart de-dup).
+type AnnounceLog struct {
+	Platform    string
+	StreamID    string
+	AnnouncedAt time.Time
+}
+
+// AlreadyAnnounced reports whether (platform, streamID) was previously recorded.
+// Satisfies announcer.Store.
+func (db *DB) AlreadyAnnounced(platform, streamID string) (bool, error) {
+	var one int
+	query := `SELECT 1 FROM announce_log WHERE platform = ? AND stream_id = ? LIMIT 1`
+	err := db.sql.QueryRow(query, platform, streamID).Scan(&one)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// MarkAnnounced records (platform, streamID) as announced now. Idempotent.
+// Satisfies announcer.Store.
+func (db *DB) MarkAnnounced(platform, streamID string) error {
+	query := `
+		INSERT INTO announce_log (platform, stream_id, announced_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT (platform, stream_id) DO UPDATE SET announced_at = excluded.announced_at
+	`
+	_, err := db.sql.Exec(query, platform, streamID, time.Now())
+	return err
+}
+
+// PruneAnnounceLog deletes announce records older than maxAge (TTL cleanup).
+// A maxAge <= 0 is a no-op.
+func (db *DB) PruneAnnounceLog(maxAge time.Duration) error {
+	if maxAge <= 0 {
+		return nil
+	}
+	cutoff := time.Now().Add(-maxAge)
+	_, err := db.sql.Exec(`DELETE FROM announce_log WHERE announced_at < ?`, cutoff)
+	return err
 }
 
 // SetDBDriverNameForTest allows tests to override the sql driver name.

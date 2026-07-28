@@ -185,6 +185,11 @@ audio_source:
 connector:
   ipc_control_out: yes
   control_socket: "/tmp/vlx_control.sock"
+
+announce:
+  enable: no
+  webhook_url: "https://discord.com/api/webhooks/<id>/<token>"
+  embed_enable: no
 ```
 
 ### Reverse Proxy Configuration

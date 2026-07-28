@@ -130,6 +130,8 @@ announce:
   end_enable: no
   # End placeholders: {platform} {url}
   end_message_template: "⚫ {platform} stream has ended."
+  # Rich embeds instead of plain text (coloured side-bar, title, fields, footer).
+  embed_enable: no
   twitch:
     enable: yes
   youtube:

@@ -41,6 +41,12 @@ func initializeDatabase(varDir string) error {
 			next_page_token TEXT,
 			updated_at DATETIME NOT NULL
 		);`,
+		`CREATE TABLE IF NOT EXISTS announce_log (
+			platform TEXT NOT NULL,
+			stream_id TEXT NOT NULL,
+			announced_at DATETIME NOT NULL,
+			PRIMARY KEY (platform, stream_id)
+		);`,
 	}
 
 	for _, query := range queries {

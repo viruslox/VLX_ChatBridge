@@ -11,17 +11,27 @@
 // both-live cases without ever blocking on a platform that may never go live.
 //
 // A per-session fire-once guard prevents the YouTube polling loop (and Twitch
-// reconnect storms) from re-announcing. The guard is released via Reset, which
-// the callers invoke when a stream genuinely ends (Twitch stream.offline) or
-// when the live signal is lost (YouTube live-chat-id lost / poll failure).
+// reconnect storms) from re-announcing within a single process lifetime. The
+// guard is released via Reset, which the callers invoke when a stream genuinely
+// ends (Twitch stream.offline) or when the live signal is lost (YouTube
+// live-chat-id lost / poll failure).
+//
+// Cross-restart de-duplication: the in-memory guard is lost if ChatBridge
+// restarts mid-stream, which would re-announce the same live. To prevent this,
+// each go-live carries a stable per-stream identifier (Twitch started_at,
+// YouTube videoID). Before announcing, the announcer records (platform, streamID)
+// in a persistent Store; if that pair was already recorded, the announce is
+// suppressed. See the Store interface.
 package announcer
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +46,21 @@ const (
 	PlatformTwitch  Platform = "Twitch"
 	PlatformYouTube Platform = "YouTube"
 )
+
+// maxSendAttempts bounds retry attempts on rate-limited/transient webhook POSTs.
+const maxSendAttempts = 2
+
+// Store persists which streams have already been announced, enabling
+// de-duplication across process restarts. *database.DB satisfies this.
+// All methods must be safe to call with a nil receiver-free implementation;
+// the announcer treats a nil Store as "no persistence" and falls back to the
+// in-memory guard only.
+type Store interface {
+	// AlreadyAnnounced reports whether (platform, streamID) was previously marked.
+	AlreadyAnnounced(platform, streamID string) (bool, error)
+	// MarkAnnounced records (platform, streamID) as announced at time.Now().
+	MarkAnnounced(platform, streamID string) error
+}
 
 // Config holds the resolved announce settings.
 type Config struct {
@@ -52,13 +77,19 @@ type Config struct {
 	// per-platform (no coalescing). EndTemplate placeholders: {platform} {url}.
 	EndEnable   bool
 	EndTemplate string
+
+	// EmbedEnable switches go-live/end messages from plain content to rich
+	// Discord embeds (see announcer_embed.go). When false, the plain templates
+	// above are used unchanged.
+	EmbedEnable bool
 }
 
 // liveInfo captures the per-platform details reported at go-live time.
 type liveInfo struct {
-	title string
-	url   string
-	at    time.Time
+	title    string
+	url      string
+	streamID string
+	at       time.Time
 }
 
 // Announcer coordinates go-live notifications.
@@ -66,11 +97,13 @@ type Announcer struct {
 	cfg    Config
 	logger *zap.Logger
 	client *http.Client
+	store  Store // optional; nil = in-memory guard only
 
-	mu      sync.Mutex
-	pending map[Platform]liveInfo // platforms currently considered live this session
-	timer   *time.Timer           // coalescing timer; non-nil while a window is open
-	fired   bool                  // fire-once guard for the current live session
+	mu       sync.Mutex
+	pending  map[Platform]liveInfo // platforms currently considered live this session
+	timer    *time.Timer           // coalescing timer; non-nil while a window is open
+	fired    bool                  // fire-once guard for the current live session
+	disabled bool                  // set true after a 404 (dead webhook) to stop retrying
 }
 
 // New builds an Announcer. A nil-safe zero value is returned when disabled so
@@ -93,6 +126,17 @@ func New(cfg Config, logger *zap.Logger) *Announcer {
 	}
 }
 
+// SetStore attaches a persistence layer for cross-restart de-duplication.
+// Optional; if never called, the announcer relies on the in-memory guard only.
+func (a *Announcer) SetStore(s Store) {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.store = s
+	a.mu.Unlock()
+}
+
 // platformEnabled reports whether a given platform is allowed to announce.
 func (a *Announcer) platformEnabled(p Platform) bool {
 	switch p {
@@ -106,14 +150,40 @@ func (a *Announcer) platformEnabled(p Platform) bool {
 }
 
 // NotifyLive records that a platform went live and (re)arms the coalescing
-// window. Safe to call from multiple goroutines. No-op when the announcer is
-// nil, disabled, missing a webhook URL, or the platform is disabled.
-func (a *Announcer) NotifyLive(p Platform, title, url string) {
+// window. streamID is a stable per-stream identifier (Twitch started_at,
+// YouTube videoID) used for cross-restart de-duplication; it may be empty, in
+// which case only the in-memory guard applies. Safe to call from multiple
+// goroutines. No-op when the announcer is nil, disabled, missing a webhook URL,
+// or the platform is disabled.
+func (a *Announcer) NotifyLive(p Platform, title, url, streamID string) {
 	if a == nil || !a.cfg.Enable || a.cfg.WebhookURL == "" {
 		return
 	}
 	if !a.platformEnabled(p) {
 		return
+	}
+
+	// Cross-restart de-dup: if this exact stream was already announced in a
+	// previous process lifetime, suppress. Done outside the lock (DB call).
+	if streamID != "" {
+		a.mu.Lock()
+		store := a.store
+		a.mu.Unlock()
+		if store != nil {
+			if done, err := store.AlreadyAnnounced(string(p), streamID); err != nil {
+				a.logger.Warn("Announce dedup check failed; proceeding",
+					zap.String("platform", string(p)), zap.Error(err))
+			} else if done {
+				a.logger.Info("Go-live already announced in a prior session; suppressing",
+					zap.String("platform", string(p)), zap.String("stream_id", streamID))
+				// Still record it as live in-session so an end-reset is coherent.
+				a.mu.Lock()
+				a.fired = true
+				a.pending[p] = liveInfo{title: title, url: url, streamID: streamID, at: time.Now()}
+				a.mu.Unlock()
+				return
+			}
+		}
 	}
 
 	a.mu.Lock()
@@ -122,11 +192,11 @@ func (a *Announcer) NotifyLive(p Platform, title, url string) {
 	// Already announced this session: record the platform (so an offline reset
 	// is coherent) but do not re-fire.
 	if a.fired {
-		a.pending[p] = liveInfo{title: title, url: url, at: time.Now()}
+		a.pending[p] = liveInfo{title: title, url: url, streamID: streamID, at: time.Now()}
 		return
 	}
 
-	a.pending[p] = liveInfo{title: title, url: url, at: time.Now()}
+	a.pending[p] = liveInfo{title: title, url: url, streamID: streamID, at: time.Now()}
 
 	if a.timer == nil {
 		a.timer = time.AfterFunc(a.cfg.CombineWindow, a.flush)
@@ -182,8 +252,12 @@ func (a *Announcer) NotifyEnd(p Platform) {
 	a.mu.Unlock()
 
 	if shouldSend {
-		msg := renderEndTemplate(tmpl, string(p), url)
-		a.send(msg)
+		if a.cfg.EmbedEnable {
+			a.sendEndEmbed(string(p), url)
+		} else {
+			msg := renderEndTemplate(tmpl, string(p), url)
+			a.send(msg)
+		}
 	}
 
 	// Always release session state for this platform.
@@ -233,7 +307,30 @@ func (a *Announcer) flush() {
 	}
 	title := entries[0].info.title
 	cfg := a.cfg
+	store := a.store
 	a.mu.Unlock()
+
+	// Persist announced streams for cross-restart de-dup (best-effort).
+	if store != nil {
+		for _, e := range entries {
+			if e.info.streamID == "" {
+				continue
+			}
+			if err := store.MarkAnnounced(string(e.p), e.info.streamID); err != nil {
+				a.logger.Warn("Failed to persist announce record",
+					zap.String("platform", string(e.p)), zap.Error(err))
+			}
+		}
+	}
+
+	if cfg.EmbedEnable {
+		primaryURL := ""
+		if len(urls) > 0 {
+			primaryURL = urls[0]
+		}
+		a.sendLiveEmbed(names, title, strings.Join(urls, "\n"), primaryURL)
+		return
+	}
 
 	msg := renderTemplate(cfg.MessageTemplate, strings.Join(names, " + "), title, strings.Join(urls, "\n"))
 	a.send(msg)
@@ -256,8 +353,10 @@ type discordWebhookPayload struct {
 	AvatarURL string `json:"avatar_url,omitempty"`
 }
 
-// send performs the outbound webhook POST. Fire-and-forget: failures are logged,
-// not retried.
+// send performs the outbound webhook POST with bounded retry on rate-limit
+// (429) and transient 5xx responses. Fire-and-forget beyond that: it does not
+// block the caller's logic and does not retry indefinitely. A 404 permanently
+// disables further sends this session (a dead webhook must not be hammered).
 func (a *Announcer) send(content string) {
 	payload := discordWebhookPayload{
 		Content:   content,
@@ -269,26 +368,106 @@ func (a *Announcer) send(content string) {
 		a.logger.Error("Announce marshal failed", zap.Error(err))
 		return
 	}
+	a.sendBody(body, content)
+}
 
-	req, err := http.NewRequest(http.MethodPost, a.cfg.WebhookURL, bytes.NewReader(body))
-	if err != nil {
-		a.logger.Error("Announce request build failed", zap.Error(err))
+// sendBody performs the outbound webhook POST for a pre-marshalled JSON body,
+// with bounded retry on 429/5xx and permanent disable on 404. desc is used only
+// for logging. Shared by the plain-content and embed paths.
+func (a *Announcer) sendBody(body []byte, desc string) {
+	a.mu.Lock()
+	if a.disabled {
+		a.mu.Unlock()
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
+	a.mu.Unlock()
 
-	resp, err := a.client.Do(req)
-	if err != nil {
-		a.logger.Error("Announce POST failed", zap.Error(err))
+	for attempt := 1; attempt <= maxSendAttempts; attempt++ {
+		req, err := http.NewRequest(http.MethodPost, a.cfg.WebhookURL, bytes.NewReader(body))
+		if err != nil {
+			a.logger.Error("Announce request build failed", zap.Error(err))
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := a.client.Do(req)
+		if err != nil {
+			a.logger.Error("Announce POST failed", zap.Error(err))
+			return
+		}
+
+		status := resp.StatusCode
+
+		// Success.
+		if status < 300 {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			a.logger.Info("Announce sent", zap.String("content", desc))
+			return
+		}
+
+		// Dead webhook: never retry, disable for this session.
+		if status == http.StatusNotFound {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			a.mu.Lock()
+			a.disabled = true
+			a.mu.Unlock()
+			a.logger.Error("Announce webhook returned 404 (dead URL); disabling announcer for this session. Check announce.webhook_url")
+			return
+		}
+
+		// Rate-limited: honor Retry-After, then retry (bounded).
+		if status == http.StatusTooManyRequests && attempt < maxSendAttempts {
+			wait := parseRetryAfter(resp.Header.Get("Retry-After"))
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			a.logger.Warn("Announce rate-limited (429); retrying after wait",
+				zap.Duration("wait", wait), zap.Int("attempt", attempt))
+			time.Sleep(wait)
+			continue
+		}
+
+		// Transient server error: retry (bounded) with a small backoff.
+		if status >= 500 && attempt < maxSendAttempts {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			a.logger.Warn("Announce server error; retrying",
+				zap.Int("status", status), zap.Int("attempt", attempt))
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		// Non-retryable (4xx other than 429) or retries exhausted.
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		a.logger.Error("Announce POST non-2xx (giving up)",
+			zap.Int("status", status),
+			zap.String("detail", fmt.Sprintf("webhook returned %d", status)))
 		return
 	}
-	defer resp.Body.Close()
+}
 
-	if resp.StatusCode >= 300 {
-		a.logger.Error("Announce POST non-2xx",
-			zap.Int("status", resp.StatusCode),
-			zap.String("detail", fmt.Sprintf("webhook returned %d", resp.StatusCode)))
-		return
+// parseRetryAfter interprets a Retry-After header (seconds form) and returns a
+// sane, bounded wait. Falls back to 1s when absent or unparseable, and caps at
+// 10s so a fire-and-forget announce never blocks a goroutine for long.
+func parseRetryAfter(h string) time.Duration {
+	const fallback = 1 * time.Second
+	const maxWait = 10 * time.Second
+	h = strings.TrimSpace(h)
+	if h == "" {
+		return fallback
 	}
-	a.logger.Info("Announce sent", zap.String("content", content))
+	// Discord sends a decimal seconds value (e.g. "1.5").
+	if secs, err := strconv.ParseFloat(h, 64); err == nil {
+		d := time.Duration(secs * float64(time.Second))
+		if d <= 0 {
+			return fallback
+		}
+		if d > maxWait {
+			return maxWait
+		}
+		return d
+	}
+	return fallback
 }

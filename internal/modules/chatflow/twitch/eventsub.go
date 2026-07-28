@@ -572,6 +572,7 @@ func (c *Client) handleStreamOnline(eventData json.RawMessage) {
 	var e struct {
 		BroadcasterUserID   string `json:"broadcaster_user_id"`
 		BroadcasterUserName string `json:"broadcaster_user_login"`
+		StartedAt           string `json:"started_at"`
 	}
 	if err := json.Unmarshal(eventData, &e); err != nil {
 		c.logger.Error("Failed to parse stream.online", zap.Error(err))
@@ -603,10 +604,15 @@ func (c *Client) handleStreamOnline(eventData json.RawMessage) {
 	}
 
 	if c.announcer != nil {
+		streamID := e.StartedAt
+		if streamID == "" {
+			streamID = login // fallback; still de-dups within a session
+		}
 		c.announcer.NotifyLive(
 			announcer.PlatformTwitch,
 			fullTitle,
 			"https://twitch.tv/"+login,
+			streamID,
 		)
 	}
 }

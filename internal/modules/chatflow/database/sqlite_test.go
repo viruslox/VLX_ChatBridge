@@ -101,6 +101,7 @@ func TestNewConnection(t *testing.T) {
 		defer db.Close()
 
 		mock.ExpectPing()
+		mock.ExpectExec("CREATE TABLE IF NOT EXISTS announce_log").WillReturnResult(sqlmock.NewResult(0, 0))
 
 		logger, _ := zap.NewDevelopment()
 		conn, err := NewConnection(cfg, logger)
