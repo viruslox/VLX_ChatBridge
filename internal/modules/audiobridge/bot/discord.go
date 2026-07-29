@@ -8,6 +8,8 @@ import (
 	"syscall"
 
 	"github.com/disgoorg/disgo"
+	"github.com/disgoorg/disgo/handler"
+	"go.uber.org/zap"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/discord"
@@ -30,9 +32,13 @@ type DiscordBot struct {
 	discordStreamingEnabled bool
 	excludedUsers           []string
 	discordOutChan          <-chan []byte
+	guildID                 string
+	chatBridgeDIR           string
+	zapLogger               *zap.Logger
+	slashRouter             *handler.Mux
 }
 
-func NewBot(token string, prefix string, admins []string, discordStreamingEnabled bool, excludedUsers []string, ctrl module.Controller, discordOutChan <-chan []byte) *DiscordBot {
+func NewBot(token string, prefix string, admins []string, discordStreamingEnabled bool, excludedUsers []string, guildID string, chatBridgeDIR string, logger *zap.Logger, ctrl module.Controller, discordOutChan <-chan []byte) *DiscordBot {
 	return &DiscordBot{
 		token:                   token,
 		prefix:                  prefix,
@@ -42,6 +48,9 @@ func NewBot(token string, prefix string, admins []string, discordStreamingEnable
 		excludedUsers:           excludedUsers,
 		pendingShutdown:         make(map[snowflake.ID]snowflake.ID),
 		discordOutChan:          discordOutChan,
+		guildID:                 guildID,
+		chatBridgeDIR:           chatBridgeDIR,
+		zapLogger:               logger,
 	}
 }
 
@@ -54,11 +63,14 @@ func (b *DiscordBot) Connect() error {
 		return err
 	}
 
+	b.slashRouter = b.registerSlashHandlers()
+
 	client, err := disgo.New(b.token,
 		bot.WithGatewayConfigOpts(gateway.WithIntents(gateway.IntentsAll)),
 		bot.WithCacheConfigOpts(cache.WithCaches(cache.FlagsAll)),
 		bot.WithEventListenerFunc(b.onReady),
 		bot.WithEventListenerFunc(b.onMessageCreate),
+		bot.WithEventListeners(b.slashRouter),
 		bot.WithVoiceManagerConfigOpts(voice.WithDaveSessionCreateFunc(golibdave.NewSession)),
 	)
 	if err != nil {
@@ -72,6 +84,12 @@ func (b *DiscordBot) Connect() error {
 	if err := b.client.OpenGateway(context.TODO()); err != nil {
 		log.Printf("[AudioBridge] Failed to open Discord connection: %v", err)
 		return err
+	}
+
+	if err := b.syncSlashCommands(); err != nil {
+		log.Printf("[AudioBridge] Slash command registration skipped/failed: %v", err)
+	} else {
+		log.Println("[AudioBridge] Slash commands registered for guild.")
 	}
 
 	log.Println("[AudioBridge] Discord bot connected successfully.")

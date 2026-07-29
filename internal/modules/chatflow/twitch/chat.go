@@ -39,8 +39,9 @@ type ActionPayload map[string]interface{}
 type CommandData struct {
 	Filename          string
 	Permission        string
-	MediaType         string // "audio", "video", "ipc_control", or "webhook"
+	MediaType         string // "audio", "video", "ipc_control", "webhook", or "multi_action"
 	IsBroadcasterOnly bool
+	Description       string
 	ZMQTarget         string
 	ZMQEnabled        bool
 	ZMQAction         string
@@ -189,6 +190,7 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 		var webhookMethod string
 		var autoDelete bool
 		var actions []ActionPayload
+		var description string
 
 		switch ext {
 		case ".mp3", ".wav", ".ogg":
@@ -203,13 +205,15 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 			}
 
 			var multiAction struct {
-				AutoDelete bool            `json:"auto_delete"`
-				Actions    []ActionPayload `json:"actions"`
+					AutoDelete  bool            `json:"auto_delete"`
+					Description string          `json:"description"`
+					Actions     []ActionPayload `json:"actions"`
 			}
 
 			if err := json.Unmarshal(contentBytes, &multiAction); err == nil && len(multiAction.Actions) > 0 {
 				actions = multiAction.Actions
 				autoDelete = multiAction.AutoDelete
+					description = multiAction.Description
 			} else if err := json.Unmarshal(contentBytes, &actions); err != nil {
 				logger.Warn("Invalid JSON in command file", zap.String("filename", filename), zap.Error(err))
 				continue
@@ -242,6 +246,8 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 						if val == "true" {
 							autoDelete = true
 						}
+					} else if strings.HasPrefix(line, "Description=") {
+						description = strings.TrimPrefix(line, "Description=")
 					}
 				}
 			} else if strings.Contains(content, "[WEBHOOK]") {
@@ -258,17 +264,21 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 						if val == "true" {
 							autoDelete = true
 						}
+					} else if strings.HasPrefix(line, "Description=") {
+						description = strings.TrimPrefix(line, "Description=")
 					}
 				}
 			} else {
 				var multiAction struct {
-					AutoDelete bool            `json:"auto_delete"`
-					Actions    []ActionPayload `json:"actions"`
+					AutoDelete  bool            `json:"auto_delete"`
+					Description string          `json:"description"`
+					Actions     []ActionPayload `json:"actions"`
 				}
 
 				if err := json.Unmarshal(contentBytes, &multiAction); err == nil && len(multiAction.Actions) > 0 {
 					actions = multiAction.Actions
 					autoDelete = multiAction.AutoDelete
+					description = multiAction.Description
 					mediaType = "multi_action"
 				} else if err := json.Unmarshal(contentBytes, &actions); err == nil && len(actions) > 0 {
 					mediaType = "multi_action"
@@ -290,6 +300,7 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 				Permission:        permission,
 				MediaType:         mediaType,
 				IsBroadcasterOnly: isBroadcasterOnly,
+					Description:       description,
 				ZMQTarget:         zmqTarget,
 				ZMQEnabled:        zmqEnabled,
 				ZMQAction:         zmqAction,

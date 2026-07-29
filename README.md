@@ -246,10 +246,11 @@ Body={"action": "increase"}
 #### Stealth Mode (AutoDelete)
 Both `[ZMQ_CONTROL]` and `[WEBHOOK]` files support an `AutoDelete=true` flag. This feature allows you to silently execute commands without cluttering the public chat. When enabled, it leverages dynamically refreshed DB tokens and the Twitch Helix API to instantly delete the invoking chat message.
 
-Multi-action `.json` files also support the stealth mode feature by structuring the file to include an `auto_delete` boolean flag and an `actions` array:
+Multi-action `.json` files also support the stealth mode feature by structuring the file to include an `auto_delete` boolean flag, an optional `description`, and an `actions` array:
 ```json
 {
   "auto_delete": true,
+  "description": "Optional description for Discord /commands list",
   "actions": [
     {
       "type": "ipc_control",
@@ -259,12 +260,13 @@ Multi-action `.json` files also support the stealth mode feature by structuring 
 }
 ```
 
-Example with Stealth Mode:
+Example with Stealth Mode and Description:
 ```ini
 [ZMQ_CONTROL]
 Target=stream
 Enabled=true
 AutoDelete=true
+Description=Optional description for Discord /commands list
 ```
 
 ### Running Manually
@@ -295,6 +297,8 @@ ChatBridge natively supports several built-in commands for stream interaction.
 ### Discord Commands
 *   `vlx.join` : Bot joins your voice channel and starts the SRT stream.
 *   `vlx.leave`: Bot stops streaming and disconnects.
+*   `/commands` / `/comandi`: List owner-only available commands (native and reserved Twitch/YouTube chat commands).
+*   `/run <command>`: Executes a reserved multi_action command directly from Discord.
 
 ## Twitch OAuth2 Credentials and Token Configuration
 

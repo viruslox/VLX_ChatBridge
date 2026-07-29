@@ -28,6 +28,7 @@ The system is composed of six primary, independently configurable modules. These
         *   Supports Discord's End-to-End Encryption (E2EE/DAVE protocol) using `godave` (`libdave`).
         *   Voice audio ingestion via custom Opus receiver (using `gopkg.in/hraban/opus.v2`).
         *   Voice audio egress to Discord using a `DiscordPCMSender` implementing `voice.OpusFrameProvider`.
+        *   Supports Discord slash commands (`/commands`, `/run`) to list and execute reserved multi_action commands.
 3.  **Server Module**
     *   **Purpose:** Provides the HTTP webserver interface.
     *   **Components:**
