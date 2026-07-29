@@ -300,7 +300,7 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 				Permission:        permission,
 				MediaType:         mediaType,
 				IsBroadcasterOnly: isBroadcasterOnly,
-					Description:       description,
+				Description:       description,
 				ZMQTarget:         zmqTarget,
 				ZMQEnabled:        zmqEnabled,
 				ZMQAction:         zmqAction,
