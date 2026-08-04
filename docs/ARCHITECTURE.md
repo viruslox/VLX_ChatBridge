@@ -3,7 +3,7 @@
 ## Overview
 VLX ChatBridge is a unified, self-hosted Go application designed to bridge streaming platform events (Twitch, YouTube) with Discord audio and video/audio overlays. It is structured around a centralized core that orchestrates six hot-swappable modules.
 
-As part of **"The Holy Trinity"** architecture, ChatBridge acts as the central nervous system on the localhost. It is responsible for parsing chat commands and routing them dynamically via IPC/ZMQ to `VLX_VisionBridge` (for video mixing) and via HTTP Webhooks to `VLX_FrameFlow` (for IRL backpack control).
+As part of **VLX Stream Flow** architecture, ChatBridge acts as the central nervous system on the localhost. It is responsible for parsing chat commands and routing them dynamically via IPC/ZMQ to `VLX_VisionBridge` (for video mixing) and via HTTP Webhooks to `VLX_FrameFlow` (for IRL backpack control).
 
 ## Modules
 
