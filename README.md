@@ -42,7 +42,7 @@ All six modules can be enabled or disabled on-the-fly via configuration (`module
 *   **Overlays:** Alerts overlay, Chat Media overlay, Emote Wall, and Scenes overlay.
 *   **Smart Rate Limiting & Persistence:** Token buckets for API quotas and SQLite for state/token management.
 *   **Dynamic Command Generation:** File-based chat commands generation by dropping files in corresponding permission folders (`everyone`, `subscribers`, `vips`). Use the `owner_` prefix to enforce strict broadcaster-only access control.
-*   **Dynamic File-Based Routing (ZMQ & Webhooks):** As part of **"The Holy Trinity"** architecture, ChatBridge acts as the central nervous system. It receives chat commands and routes them instantly via IPC/ZMQ to `VLX_VisionBridge` (for zero-latency video mixing) and via HTTP Webhooks to `VLX_FrameFlow` (for IRL backpack control).
+*   **Dynamic File-Based Routing (ZMQ & Webhooks):** As part of **VLX Stream Flow** architecture, ChatBridge acts as the central nervous system. It receives chat commands and routes them instantly via IPC/ZMQ to `VLX_VisionBridge` (for zero-latency video mixing) and via HTTP Webhooks to `VLX_FrameFlow` (for IRL backpack control).
 
 ### Real-Time Telemetry (GPS)
 ChatBridge natively receives GPS and Speed data directly from the FrameFlow backpack. It acts as a real-time telemetry receiver, ingesting JSON payload data and immediately broadcasting it to the frontend.
