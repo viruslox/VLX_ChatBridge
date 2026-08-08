@@ -33,7 +33,6 @@ server:
   # ingestion endpoint for FrameFlow's telemetry (e.g., http://10.1.10.1:<PORT>/api/gps)
   port: "8000"
   test_port: "8001"
-  overlay_volume: 70 # Master volume for overlays (0-100%)
 
 # Recommended to use 2 different accounts, or at least 2 difrerent tokens
 # You can create token with https://twitchtokengenerator.com/
@@ -53,9 +52,6 @@ youtube: # Leave empty to disable YouTube module
   api_key: ""
   channel_id: ""
   polling_interval: 5  # re-read chat every x seconds; the default is 5
-  monitor:
-    channel_ids:
-    - "<channel id>"
 
 # Enables Overlays creations and reproduction routes: # html -> audio+video overlay via "server" module
 # discord -> audio sent via discord module (to voice channel) # streaming -> audio sent via streaming  module (SRT) 
@@ -85,6 +81,7 @@ overlay:
 discord:
   token: ""
   prefix: "vlx."       # Commands prefix (es. !join, !leave)
+  admins: []           # List of Discord User IDs for bot admins
   guild_id: "<discord server id>" # Optional, but suggested: Restrict to specific Guild ID
   # enable or disable the capture of discord voice channel audio via streaming module (SRT)
   streaming: yes
