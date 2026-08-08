@@ -63,7 +63,6 @@ type ServerConfig struct {
 	PathPrefix     string   `yaml:"path_prefix"`
 	WebsocketPath  string   `yaml:"websocket_path"`
 	AllowedOrigins []string `yaml:"allowed_origins"`
-	OverlayVolume  int      `yaml:"overlay_volume"`
 }
 
 type DatabaseConfig struct {
@@ -71,12 +70,11 @@ type DatabaseConfig struct {
 }
 
 type TwitchConfig struct {
-	ClientID                string           `yaml:"client_id"`
-	ClientSecret            string           `yaml:"client_secret"`
-	WebhookSecret           string           `yaml:"webhook_secret"`
-	BroadcasterRefreshToken string           `yaml:"broadcaster_refresh_token"`
-	ChannelName             string           `yaml:"channel_name"`
-	Chat                    TwitchChatConfig `yaml:"chat"`
+	ClientID      string           `yaml:"client_id"`
+	ClientSecret  string           `yaml:"client_secret"`
+	WebhookSecret string           `yaml:"webhook_secret"`
+	ChannelName   string           `yaml:"channel_name"`
+	Chat          TwitchChatConfig `yaml:"chat"`
 }
 
 type TwitchChatConfig struct {
@@ -88,14 +86,9 @@ type TwitchChatConfig struct {
 }
 
 type YouTubeConfig struct {
-	APIKey          string               `yaml:"api_key"`
-	ChannelID       string               `yaml:"channel_id"`
-	PollingInterval int                  `yaml:"polling_interval"`
-	Monitor         YouTubeMonitorConfig `yaml:"monitor"`
-}
-
-type YouTubeMonitorConfig struct {
-	ChannelIDs []string `yaml:"channel_ids"`
+	APIKey          string `yaml:"api_key"`
+	ChannelID       string `yaml:"channel_id"`
+	PollingInterval int    `yaml:"polling_interval"`
 }
 
 type OverlayConfig struct {

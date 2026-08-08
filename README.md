@@ -132,7 +132,6 @@ server:
   websocket_path: "/websocket"
   port: "8000"
   test_port: "8001"
-  overlay_volume: 70
 
 database:
   path: "/opt/VLX_ChatBridge/var/chatbridge.db"
@@ -167,6 +166,7 @@ overlay:
 discord:
   token: "YOUR_DISCORD_BOT_TOKEN"
   prefix: "vlx."
+  admins: []
   streaming: yes
 
 streaming:
