@@ -18,6 +18,14 @@ const (
 
 	attackTimeMs  = 5.0
 	releaseTimeMs = 100.0
+
+	// Feed-forward compressor: reacts only to the causal envelope built from
+	// past samples (the same envelope the noise gate already uses), so it
+	// needs no lookahead buffer and adds no latency vs. the video pipeline.
+	compressorThreshold = 22000.0 // ~ -3.4 dBFS
+	compressorRatio     = 3.0     // 3:1 gain reduction above threshold
+	makeupGainDb        = 3.0
+)
 )
 
 type Mixer struct {
@@ -30,6 +38,7 @@ type Mixer struct {
 	stopOnce   sync.Once
 	envelope   float64
 	gateGain   float64
+	compGain   float64
 	volume     int
 	continuous bool
 }
@@ -43,6 +52,7 @@ func NewMixer(name string, volume int, continuous bool, inChan <-chan StreamData
 		stopChan:   make(chan struct{}),
 		volume:     volume,
 		continuous: continuous,
+		compGain:   1.0, // start at unity so the first chunk isn't ramped up from silence
 	}
 }
 
@@ -86,6 +96,9 @@ func (m *Mixer) mixLoop() {
 	attackCoef := math.Exp(-1.0 / (sampleRate * (attackTimeMs / 1000.0)))
 	releaseCoef := math.Exp(-1.0 / (sampleRate * (releaseTimeMs / 1000.0)))
 
+	// Constant compressor makeup gain, computed once rather than per-sample.
+	makeupGainLinear := math.Pow(10, makeupGainDb/20.0)
+
 	// Reusable zeroed chunk for sending silence
 	silentChunk := make([]byte, chunkSize)
 
@@ -110,6 +123,11 @@ func (m *Mixer) mixLoop() {
 					m.envelope = releaseCoef * m.envelope
 					if m.envelope < 50.0 {
 						m.gateGain = releaseCoef * m.gateGain
+					}
+					// Relax the compressor back to unity gain during silence so
+					// the next transient isn't hit with stale gain reduction.
+					if m.compGain < 1.0 {
+						m.compGain = releaseCoef*m.compGain + (1.0-releaseCoef)*1.0
 					}
 				}
 
@@ -163,14 +181,27 @@ func (m *Mixer) mixLoop() {
 					m.gateGain = attackCoef*m.gateGain + (1.0-attackCoef)*1.0
 				}
 
-				mixedSample *= m.gateGain
-
-				// Hard clip
-				if mixedSample > 32767.0 {
-					mixedSample = 32767.0
-				} else if mixedSample < -32768.0 {
-					mixedSample = -32768.0
+				// Feed-forward compressor gain, derived from the same causal
+				// envelope used by the gate above -- no additional buffering
+				// or lookahead required, so latency vs. the video pipeline is
+				// unchanged.
+				targetCompGain := 1.0
+				if m.envelope > compressorThreshold {
+					compressedLevel := compressorThreshold + (m.envelope-compressorThreshold)/compressorRatio
+					targetCompGain = compressedLevel / m.envelope
 				}
+				if targetCompGain < m.compGain {
+					m.compGain = attackCoef*m.compGain + (1.0-attackCoef)*targetCompGain
+				} else {
+					m.compGain = releaseCoef*m.compGain + (1.0-releaseCoef)*targetCompGain
+				}
+
+				mixedSample *= m.gateGain * m.compGain * makeupGainLinear
+
+				// Soft clip -- still a memoryless, sample-by-sample function
+				// like the previous hard clamp, so it adds no latency; it
+				// rounds off peaks instead of chopping them flat.
+				mixedSample = 32767.0 * math.Tanh(mixedSample/32767.0)
 
 				finalSample := int16(mixedSample)
 				binary.LittleEndian.PutUint16(mixedChunk[i*2:i*2+2], uint16(finalSample))
