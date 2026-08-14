@@ -26,7 +26,6 @@ const (
 	compressorRatio     = 3.0     // 3:1 gain reduction above threshold
 	makeupGainDb        = 3.0
 )
-)
 
 type Mixer struct {
 	name       string
