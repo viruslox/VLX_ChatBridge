@@ -98,11 +98,10 @@ streaming:
   volume: 75    # 0-100, in percentage
 
 audio_source:
-  # SRTs source to load and inject into Discord or sent via streaming module. NOTE: volume: 0-100 percentage.
+  # SRTs source to load and inject into Discord or sent via streaming module.
   enable: yes
   discord: yes
   streaming: no
-  volume: 80
   url: "srt://some.online.radio"
 
 # VLX Connector configuration (IPC locally for VisionBridge)

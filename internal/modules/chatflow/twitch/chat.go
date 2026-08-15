@@ -715,7 +715,7 @@ func (c *ChatClient) handleSceneCommand(message twitch.PrivateMessage) {
 		for _, ext := range extensions {
 			filePath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", sceneName+ext)
 			if _, err := os.Stat(filePath); err == nil {
-				go audio.PlayAlert("scene_change_"+sceneName, filePath, streamingEnabled, discordEnabled)
+				go audio.PlayAlert("scene_change_"+sceneName, filePath, streamingEnabled, discordEnabled, c.config.Overlay.Scenes.Volume)
 				break
 			}
 		}
@@ -940,7 +940,7 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 
 	if streamingEnabled || discordEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", lookup.cmdData.Filename)
-		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled)
+		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled, c.config.Overlay.Chat.Volume)
 	}
 }
 

@@ -259,7 +259,7 @@ func (m *Module) handleAlert(w http.ResponseWriter, r *http.Request) {
 		streamingEnabled := m.config.Overlay.Alerts.Streaming
 		discordEnabled := m.config.Overlay.Alerts.Discord
 		fullPath := filepath.Join(m.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
-		err := audio.DecodeMediaToPCM("test_alert", fullPath, bool(streamingEnabled), bool(discordEnabled))
+		err := audio.DecodeMediaToPCM("test_alert", fullPath, bool(streamingEnabled), bool(discordEnabled), m.config.Overlay.Alerts.Volume)
 		if err != nil {
 			log.Printf("[ChatFlow] Error decoding alert: %v", err)
 		}

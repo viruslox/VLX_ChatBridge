@@ -144,7 +144,6 @@ type AudioSourceConfig struct {
 	Enable    YesNoBool   `yaml:"enable"`
 	Discord   YesNoBool   `yaml:"discord"`
 	Streaming YesNoBool   `yaml:"streaming"`
-	Volume    int    `yaml:"volume"`
 	URL       string `yaml:"url"`
 }
 
