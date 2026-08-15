@@ -443,7 +443,7 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 
 	if streamingEnabled || discordEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "chat", cmdData.Filename)
-		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled)
+		go audio.PlayAlert("chat_command_"+commandName, fullPath, streamingEnabled, discordEnabled, c.config.Overlay.Chat.Volume)
 	}
 }
 
@@ -459,7 +459,7 @@ func (c *Client) broadcast(payload map[string]interface{}) {
 
 	if streamingEnabled || discordEnabled {
 		fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
-		go audio.PlayAlert("youtube_alert", fullPath, streamingEnabled, discordEnabled)
+		go audio.PlayAlert("youtube_alert", fullPath, streamingEnabled, discordEnabled, c.config.Overlay.Alerts.Volume)
 	}
 }
 

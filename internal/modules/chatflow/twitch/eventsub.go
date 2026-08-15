@@ -674,7 +674,7 @@ func (c *Client) handleNotification(eventType string, eventData json.RawMessage)
 
 		if streamingEnabled || discordEnabled {
 			fullPath := filepath.Join(c.config.ChatBridgeDIR, "static", "alerts", "alert.mp3")
-			go audio.PlayAlert("twitch_alert", fullPath, streamingEnabled, discordEnabled)
+			go audio.PlayAlert("twitch_alert", fullPath, streamingEnabled, discordEnabled, c.config.Overlay.Alerts.Volume)
 		}
 	}
 }

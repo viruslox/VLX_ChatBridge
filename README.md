@@ -182,7 +182,6 @@ audio_source:
   enable: no
   discord: yes
   streaming: no
-  volume: 80
   url: "srt://127.0.0.1:2020?..."
 
 connector:
