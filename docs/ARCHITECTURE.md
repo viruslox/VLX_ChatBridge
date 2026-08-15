@@ -76,7 +76,7 @@ The audio system replaces traditional headless browser capture with direct inter
 
 *   **Decoding:** Media files triggered by alerts or chat commands are decoded by FFmpeg (via `os/exec` in `audio.DecodeMediaToPCM`) into 48kHz stereo 16-bit PCM.
 *   **Routing:** Audio is initially sent to a shared singleton `PCMChannel` (`chan StreamData`). A central router (`internal/core/audio/pipe.go`) fans out this data to specific channels (`SRTChannel`, and `DiscordChannel`) based on configuration flags (`RouteSRT`, and `RouteDiscord`).
-*   **Mixing:** Independent `audio.Mixer` instances handle mixing for different outputs (e.g., SRT, Discord). This separation prevents issues like echoing a Discord participant's audio back to them. The mixer tracks multiple streams by ID, applying dynamic equal-power volume balancing and envelope-based noise gating.
+*   **Mixing:** Independent `audio.Mixer` instances handle mixing for different outputs (e.g., SRT, Discord). This separation prevents issues like echoing a Discord participant's audio back to them. The mixer tracks multiple streams by ID, applying dynamic equal-power volume balancing, envelope-based noise gating, a zero-latency feed-forward compressor, and soft-clip peak limiting.
 
 ## Database
 
