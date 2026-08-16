@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"VLX_ChatBridge/internal/core/config"
+	"VLX_ChatBridge/internal/core/controlapi"
 	"VLX_ChatBridge/internal/core/install"
 	"VLX_ChatBridge/internal/core/module"
 	"VLX_ChatBridge/internal/modules/audiobridge"
@@ -113,12 +114,39 @@ func main() {
 		}
 	}
 
+	// Start the always-on control/status API used by the web GUI. It runs
+	// regardless of which modules are enabled so the GUI can always reach the
+	// backend. Toggles it performs are persisted to the settings file and take
+	// effect on the next (systemd-relaunched) restart.
+	triggerShutdown := func() {
+		if p, err := os.FindProcess(os.Getpid()); err == nil {
+			_ = p.Signal(syscall.SIGTERM)
+		}
+	}
+	var ctrlAPI *controlapi.Server
+	if bool(cfg.ControlAPI.Enable) {
+		ctrlAPI = controlapi.New(
+			*configPath,
+			cfg.ControlAPI.BindAddr,
+			cfg.ControlAPI.Port,
+			cfg.ControlAPI.User,
+			cfg.ControlAPI.Pass,
+			manager,
+			triggerShutdown,
+		)
+		ctrlAPI.Start()
+	}
+
 	// Wait for interrupt signal to gracefully shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
 
 	log.Println("Shutting down VLX_ChatBridge...")
+
+	if ctrlAPI != nil {
+		ctrlAPI.Stop()
+	}
 
 	// Stop modules gracefully (only running modules are stopped)
 	if err := manager.StopAll(); err != nil {

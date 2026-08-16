@@ -45,6 +45,7 @@ type Config struct {
 	AudioSource AudioSourceConfig `yaml:"audio_source"`
 	Connector   ConnectorConfig   `yaml:"connector"`
 	Announce    AnnounceConfig    `yaml:"announce"`
+	ControlAPI  ControlAPIConfig  `yaml:"control_api"`
 }
 
 type ModulesConfig struct {
@@ -168,6 +169,14 @@ type AnnounceConfig struct {
 
 type AnnouncePlatformConfig struct {
 	Enable YesNoBool `yaml:"enable"`
+}
+
+type ControlAPIConfig struct {
+	Enable   YesNoBool `yaml:"enable"`
+	BindAddr string    `yaml:"bind_address"`
+	Port     string    `yaml:"port"`
+	User     string    `yaml:"user"`
+	Pass     string    `yaml:"pass"`
 }
 
 // LoadConfig reads and parses the configuration file at the given path.

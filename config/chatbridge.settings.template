@@ -132,3 +132,10 @@ announce:
     enable: yes
   youtube:
     enable: yes
+
+control_api:
+  enable: yes
+  bind_address: "127.0.0.1"
+  port: "8760"
+  user: "chatbridge"
+  pass: "changeme"
