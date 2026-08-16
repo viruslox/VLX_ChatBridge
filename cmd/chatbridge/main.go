@@ -70,57 +70,47 @@ func main() {
 	// Shared HTTP mux for server and chatflow
 	mux := http.NewServeMux()
 
-	if cfg.Modules.ServerEnabled {
-		log.Println("Server module is ENABLED. Registering Server module...")
-		srvModule := server.NewModule(cfg, manager, mux)
-		manager.Register(srvModule)
-	} else {
-		log.Println("Server module is DISABLED.")
-	}
+	// Construct and register ALL modules unconditionally. Registering every
+	// module (regardless of its enabled flag) is what makes on-the-fly runtime
+	// enable/disable possible: a module can only be started later if an instance
+	// exists to start. Construction is side-effect free for every module (it
+	// only stores references), so registering a disabled module is inert.
+	//
+	// The settings file remains the master: only the modules it marks enabled
+	// are STARTED at boot (see the boot loop below); everything else stays
+	// registered-but-stopped until explicitly enabled at runtime, and anything
+	// the file marks disabled stays off at boot.
+	manager.Register(server.NewModule(cfg, manager, mux))
+	manager.Register(chatflow.NewModule(cfg, manager, mux))
+	manager.Register(audiobridge.NewModule(cfg, manager))
+	manager.Register(streaming.NewModule(cfg, manager))
+	manager.Register(audiosource.NewModule(cfg, manager))
+	manager.Register(connector.NewModule(cfg, manager))
 
-	if cfg.Modules.ChatFlowEnabled {
-		log.Println("ChatFlow module is ENABLED. Registering ChatFlow module...")
-		cfModule := chatflow.NewModule(cfg, manager, mux)
-		manager.Register(cfModule)
-	} else {
-		log.Println("ChatFlow module is DISABLED.")
+	// Boot-start only the modules enabled in the settings file, in a
+	// deterministic order (Server first so the shared mux is served, matching
+	// the previous registration order).
+	type bootModule struct {
+		name    string
+		enabled bool
 	}
-
-	if cfg.Modules.AudioBridgeEnabled {
-		log.Println("AudioBridge module is ENABLED. Registering AudioBridge module...")
-		abModule := audiobridge.NewModule(cfg, manager)
-		manager.Register(abModule)
-	} else {
-		log.Println("AudioBridge module is DISABLED.")
+	bootOrder := []bootModule{
+		{"Server", bool(cfg.Modules.ServerEnabled)},
+		{"ChatFlow", bool(cfg.Modules.ChatFlowEnabled)},
+		{"AudioBridge", bool(cfg.Modules.AudioBridgeEnabled)},
+		{"Streaming", bool(cfg.Modules.StreamingEnabled)},
+		{"AudioSource", bool(cfg.Modules.AudioSourceEnabled)},
+		{"Connector", bool(cfg.Modules.ConnectorEnabled)},
 	}
-
-	if cfg.Modules.StreamingEnabled {
-		log.Println("Streaming module is ENABLED. Registering Streaming module...")
-		strModule := streaming.NewModule(cfg, manager)
-		manager.Register(strModule)
-	} else {
-		log.Println("Streaming module is DISABLED.")
-	}
-
-	if cfg.Modules.AudioSourceEnabled {
-		log.Println("AudioSource module is ENABLED. Registering AudioSource module...")
-		asModule := audiosource.NewModule(cfg, manager)
-		manager.Register(asModule)
-	} else {
-		log.Println("AudioSource module is DISABLED.")
-	}
-
-	if cfg.Modules.ConnectorEnabled {
-		log.Println("Connector module is ENABLED. Registering Connector module...")
-		connModule := connector.NewModule(cfg, manager)
-		manager.Register(connModule)
-	} else {
-		log.Println("Connector module is DISABLED.")
-	}
-
-	// Start all registered modules
-	if err := manager.StartAll(); err != nil {
-		log.Fatalf("Failed to start modules: %v", err)
+	for _, bm := range bootOrder {
+		if !bm.enabled {
+			log.Printf("%s module is DISABLED in settings; registered but not started.", bm.name)
+			continue
+		}
+		log.Printf("%s module is ENABLED. Starting...", bm.name)
+		if err := manager.StartModule(bm.name); err != nil {
+			log.Fatalf("Failed to start module %s: %v", bm.name, err)
+		}
 	}
 
 	// Wait for interrupt signal to gracefully shutdown
@@ -130,7 +120,7 @@ func main() {
 
 	log.Println("Shutting down VLX_ChatBridge...")
 
-	// Stop modules gracefully
+	// Stop modules gracefully (only running modules are stopped)
 	if err := manager.StopAll(); err != nil {
 		log.Printf("Errors during shutdown: %v", err)
 	}
