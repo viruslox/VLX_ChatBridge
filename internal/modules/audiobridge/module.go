@@ -40,7 +40,7 @@ func (m *Module) Start() error {
 
 	discordStreaming := m.config.Discord.Streaming
 	abLogger, _ := zap.NewProduction()
-	m.bot = bot.NewBot(m.config.Discord.Token, m.config.Discord.Prefix, m.config.Discord.Admins, bool(discordStreaming), m.config.Discord.ExcludedUsers, m.config.Discord.GuildID, m.config.ChatBridgeDIR, abLogger, m.controller, discordOutChan)
+	m.bot = bot.NewBot(m.config.Discord.Token, m.config.Discord.Admins, bool(discordStreaming), m.config.Discord.ExcludedUsers, m.config.Discord.GuildID, m.config.ChatBridgeDIR, abLogger, m.controller, discordOutChan)
 	if err := m.bot.Connect(); err != nil {
 		log.Printf("[AudioBridge] Discord bot connect error: %v", err)
 	}

@@ -15,11 +15,14 @@ package bot
 // to multi_action (JSON) commands.
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
@@ -51,6 +54,36 @@ func slashCommandDefs() []discord.ApplicationCommandCreate {
 				},
 			},
 		},
+		discord.SlashCommandCreate{
+			Name:        "join",
+			Description: "Bot joins a voice channel and starts the SRT stream",
+			Options: []discord.ApplicationCommandOption{
+				discord.ApplicationCommandOptionChannel{
+					Name:        "channel",
+					Description: "Voice channel to join (defaults to your current channel)",
+					Required:    false,
+				},
+			},
+		},
+		discord.SlashCommandCreate{
+			Name:        "leave",
+			Description: "Bot stops streaming and disconnects from voice",
+		},
+		discord.SlashCommandCreate{
+			Name:        "reload",
+			Description: "Reload the AudioBridge module",
+		},
+		discord.SlashCommandCreate{
+			Name:        "shutdown",
+			Description: "Shut down VLX_ChatBridge",
+			Options: []discord.ApplicationCommandOption{
+				discord.ApplicationCommandOptionBool{
+					Name:        "confirm",
+					Description: "Set to true to confirm shutdown",
+					Required:    true,
+				},
+			},
+		},
 	}
 }
 
@@ -61,6 +94,10 @@ func (b *DiscordBot) registerSlashHandlers() *handler.Mux {
 	r.SlashCommand("/commands", b.handleSlashCommands)
 	r.SlashCommand("/comandi", b.handleSlashCommands)
 	r.SlashCommand("/run", b.handleSlashRun)
+	r.SlashCommand("/join", b.handleSlashJoin)
+	r.SlashCommand("/leave", b.handleSlashLeave)
+	r.SlashCommand("/reload", b.handleSlashReload)
+	r.SlashCommand("/shutdown", b.handleSlashShutdown)
 	return r
 }
 
@@ -161,8 +198,10 @@ func (b *DiscordBot) buildCommandList() string {
 	var sb strings.Builder
 
 	sb.WriteString("**Discord commands**\n")
-	sb.WriteString(fmt.Sprintf("`%sjoin` — bot joins your voice channel and starts the SRT stream\n", b.prefix))
-	sb.WriteString(fmt.Sprintf("`%sleave` — bot stops streaming and disconnects\n", b.prefix))
+	sb.WriteString("`/join [channel]` — bot joins a voice channel and starts the SRT stream\n")
+	sb.WriteString("`/leave` — bot stops streaming and disconnects\n")
+	sb.WriteString("`/reload` — reload the AudioBridge module\n")
+	sb.WriteString("`/shutdown confirm:true` — shut down VLX_ChatBridge\n")
 	sb.WriteString("`/run <command>` — run a reserved multi-action command\n")
 
 	cmds := b.scanCommands()
@@ -209,4 +248,97 @@ func (b *DiscordBot) syncSlashCommands() error {
 		return fmt.Errorf("invalid guild_id %q: %w", b.guildID, err)
 	}
 	return handler.SyncCommands(b.client, slashCommandDefs(), []snowflake.ID{gid})
+}
+
+// handleSlashJoin joins a voice channel (option, else the caller's current one)
+// and wires the SRT receiver/sender, mirroring the former prefix "join" path.
+func (b *DiscordBot) handleSlashJoin(data discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
+	if !b.isInteractionOwner(e) {
+		return e.CreateMessage(ephemeral("Only the server owner can use this command."))
+	}
+	if e.GuildID() == nil {
+		return e.CreateMessage(ephemeral("This command must be used in a server."))
+	}
+	guildID := *e.GuildID()
+
+	var channelID snowflake.ID
+	if ch, ok := data.OptChannel("channel"); ok {
+		channelID = ch.ID
+	} else {
+		vs, ok := e.Client().Caches.VoiceState(guildID, e.User().ID)
+		if !ok || vs.ChannelID == nil {
+			return e.CreateMessage(ephemeral("You are not in a voice channel, and no channel was provided."))
+		}
+		channelID = *vs.ChannelID
+	}
+
+	conn := b.client.VoiceManager.CreateConn(guildID)
+	go func() {
+		if err := conn.Open(context.TODO(), channelID, false, false); err != nil {
+			log.Printf("[AudioBridge] Failed to join voice channel %s: %v", channelID, err)
+			return
+		}
+		conn.SetOpusFrameReceiver(NewDiscordOpusReceiver(b.discordStreamingEnabled, b.excludedUsers))
+		conn.SetOpusFrameProvider(NewDiscordPCMSender(b.discordOutChan))
+		log.Printf("[AudioBridge] Joined voice channel %s successfully.", channelID)
+	}()
+
+	return e.CreateMessage(ephemeral(fmt.Sprintf("Joining <#%s> and starting the stream.", channelID)))
+}
+
+// handleSlashLeave disconnects from voice, mirroring the former prefix "leave" path.
+func (b *DiscordBot) handleSlashLeave(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
+	if !b.isInteractionOwner(e) {
+		return e.CreateMessage(ephemeral("Only the server owner can use this command."))
+	}
+	if e.GuildID() == nil {
+		return e.CreateMessage(ephemeral("This command must be used in a server."))
+	}
+	guildID := *e.GuildID()
+
+	conn := b.client.VoiceManager.GetConn(guildID)
+	if conn == nil {
+		return e.CreateMessage(ephemeral("Not currently connected to a voice channel."))
+	}
+	go func() {
+		conn.Close(context.TODO())
+		b.client.VoiceManager.RemoveConn(guildID)
+		log.Printf("[AudioBridge] Left voice channel successfully.")
+	}()
+
+	return e.CreateMessage(ephemeral("Leaving the voice channel."))
+}
+
+// handleSlashReload restarts the AudioBridge module, mirroring the former prefix "reload" path.
+func (b *DiscordBot) handleSlashReload(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
+	if !b.isInteractionOwner(e) {
+		return e.CreateMessage(ephemeral("Only the server owner can use this command."))
+	}
+	log.Printf("[AudioBridge] Reloading AudioBridge module...")
+	go func() {
+		if b.controller != nil {
+			b.controller.StopModule("AudioBridge")
+			b.controller.StartModule("AudioBridge")
+		}
+	}()
+	return e.CreateMessage(ephemeral("Reloading the AudioBridge module."))
+}
+
+// handleSlashShutdown terminates the process when confirm:true, replacing the
+// former prefix "shutdown" + "yes" two-step confirmation.
+func (b *DiscordBot) handleSlashShutdown(data discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
+	if !b.isInteractionOwner(e) {
+		return e.CreateMessage(ephemeral("Only the server owner can use this command."))
+	}
+	if !data.Bool("confirm") {
+		return e.CreateMessage(ephemeral("Shutdown not confirmed. Re-run with `confirm:true` to proceed."))
+	}
+	log.Printf("[AudioBridge] Shutdown confirmed by owner via slash command.")
+	if err := e.CreateMessage(ephemeral("Shutting down...")); err != nil {
+		log.Printf("[AudioBridge] Failed to acknowledge shutdown: %v", err)
+	}
+	go func() {
+		syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+	}()
+	return nil
 }
