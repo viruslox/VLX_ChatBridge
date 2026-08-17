@@ -2,3 +2,8 @@ chatbridge
 VLX_ChatBridge
 *.exe
 config.yml
+frontend_app/node_modules
+VLX_ChatBridge_frontend
+frontend_app/dist
+internal/ui/dist
+godave
