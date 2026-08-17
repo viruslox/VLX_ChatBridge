@@ -1,0 +1,15 @@
+# VLX_ChatBridge Frontend (web GUI) settings
+
+# Standalone web server binding (Apache reverse-proxy target)
+bind_address=0.0.0.0
+bind_port=8090
+
+# GUI credentials (BasicAuth required to reach the panel)
+CB_GUI_USER=frontend
+CB_GUI_PASS=frontend
+
+# Backend control API (must match the control_api block in chatbridge.settings)
+backend_address=127.0.0.1
+backend_port=8760
+backend_user=chatbridge
+backend_pass=changeme
