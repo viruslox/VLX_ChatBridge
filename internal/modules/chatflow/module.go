@@ -325,6 +325,7 @@ func (m *Module) Stop() error {
 	}
 
 	if hub != nil {
+		// Stop the WebSocket hub alongside other teardowns.
 		hub.Stop()
 	}
 
