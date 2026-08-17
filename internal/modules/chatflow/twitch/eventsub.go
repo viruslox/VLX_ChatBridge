@@ -45,6 +45,7 @@ type Client struct {
 	selfBaseURL string
 	logger      *zap.Logger
 	announcer   *announcer.Announcer
+	stopChan    chan struct{}
 }
 
 // SetAnnouncer attaches the go-live/end announcer (optional).
@@ -86,6 +87,7 @@ func NewClient(cfg *config.Config, monitoringChannels []string, baseURL string, 
 		config:      cfg,
 		selfBaseURL: baseURL,
 		logger:      logger,
+		stopChan:    make(chan struct{}),
 	}
 
 	// 2. Verify User Permissions (using DB or Config)
@@ -103,6 +105,14 @@ func NewClient(cfg *config.Config, monitoringChannels []string, baseURL string, 
 	logger.Info("Twitch Client initialized (App Access Token active)")
 
 	return c, nil
+}
+
+func (c *Client) Stop() {
+	select {
+	case <-c.stopChan:
+	default:
+		close(c.stopChan)
+	}
 }
 
 // resolveUserID fetches the user ID for a given login.

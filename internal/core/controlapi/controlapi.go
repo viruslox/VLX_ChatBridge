@@ -73,6 +73,8 @@ var featureToggles = []toggle{
 // (Server, ChatFlow) share an HTTP mux that is not yet re-entrant, so they are
 // persist-and-restart.
 var liveToggleModules = map[string]bool{
+	"Server":      true,
+	"ChatFlow":    true,
 	"AudioBridge": true,
 	"Streaming":   true,
 	"AudioSource": true,
