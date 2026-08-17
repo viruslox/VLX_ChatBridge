@@ -131,6 +131,7 @@ func main() {
 			cfg.ControlAPI.Port,
 			cfg.ControlAPI.User,
 			cfg.ControlAPI.Pass,
+			cfg.ControlAPI.LogUnit,
 			manager,
 			triggerShutdown,
 		)
