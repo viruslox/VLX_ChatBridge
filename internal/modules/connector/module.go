@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,7 +19,8 @@ import (
 type Module struct {
 	config     *config.Config
 	controller module.Controller
-	stopChan       chan struct{}
+	mu         sync.Mutex
+	stopChan   chan struct{}
 }
 
 // NewModule creates a new instance of the Connector module.
@@ -26,7 +28,6 @@ func NewModule(cfg *config.Config, ctrl module.Controller) *Module {
 	return &Module{
 		config:     cfg,
 		controller: ctrl,
-		stopChan:   make(chan struct{}),
 	}
 }
 
@@ -43,9 +44,17 @@ type ConnectorPayload struct {
 func (m *Module) Start() error {
 	log.Println("[Connector] Starting module...")
 
+	// A fresh stop channel per start makes the module safe to enable/disable
+	// repeatedly at runtime. The running goroutine captures this channel, so a
+	// later Stop cannot race with a subsequent Start.
+	m.mu.Lock()
+	m.stopChan = make(chan struct{})
+	stop := m.stopChan
+	m.mu.Unlock()
+
 	if m.config.Connector.IPCControlOut {
 		log.Println("[Connector] Control IPC Out is ENABLED")
-		go m.controlWriterLoop()
+		go m.controlWriterLoop(stop)
 	}
 
 	log.Println("[Connector] Started successfully.")
@@ -55,7 +64,13 @@ func (m *Module) Start() error {
 // Stop cleanly shuts down the Connector components.
 func (m *Module) Stop() error {
 	log.Println("[Connector] Stopping module...")
-	close(m.stopChan)
+
+	m.mu.Lock()
+	if m.stopChan != nil {
+		close(m.stopChan)
+		m.stopChan = nil
+	}
+	m.mu.Unlock()
 
 	log.Println("[Connector] Stopped successfully.")
 	return nil
@@ -66,7 +81,7 @@ func (m *Module) Name() string {
 	return "Connector"
 }
 
-func (m *Module) controlWriterLoop() {
+func (m *Module) controlWriterLoop(stop <-chan struct{}) {
 	var conn net.Conn
 	var err error
 	socketPath := m.config.Connector.ControlSocket
@@ -76,7 +91,7 @@ func (m *Module) controlWriterLoop() {
 
 	for {
 		select {
-		case <-m.stopChan:
+		case <-stop:
 			if conn != nil {
 				conn.Close()
 			}

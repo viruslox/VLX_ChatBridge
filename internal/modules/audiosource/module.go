@@ -17,7 +17,6 @@ type Module struct {
 	controller module.Controller
 	cmd        *exec.Cmd
 	stopChan   chan struct{}
-	stopOnce   sync.Once
 	mu         sync.Mutex
 }
 
@@ -25,7 +24,6 @@ func NewModule(cfg *config.Config, ctrl module.Controller) *Module {
 	return &Module{
 		config:     cfg,
 		controller: ctrl,
-		stopChan:   make(chan struct{}),
 	}
 }
 
@@ -42,7 +40,14 @@ func (m *Module) Start() error {
 		return nil
 	}
 
-	go m.runLoop()
+	// A fresh stop channel per start makes the module safe to enable/disable
+	// repeatedly at runtime; the ingest goroutine captures this channel.
+	m.mu.Lock()
+	m.stopChan = make(chan struct{})
+	stop := m.stopChan
+	m.mu.Unlock()
+
+	go m.runLoop(stop)
 
 	log.Println("[AudioSource] Started successfully.")
 	return nil
@@ -52,15 +57,15 @@ func (m *Module) Name() string {
 	return "AudioSource"
 }
 
-func (m *Module) runLoop() {
+func (m *Module) runLoop(stop <-chan struct{}) {
 	for {
 		select {
-		case <-m.stopChan:
+		case <-stop:
 			return
 		default:
 		}
 
-		err := m.run()
+		err := m.run(stop)
 		if err != nil {
 			log.Printf("[AudioSource] FFmpeg error: %v. Restarting in 5s...", err)
 			time.Sleep(5 * time.Second)
@@ -71,7 +76,7 @@ func (m *Module) runLoop() {
 	}
 }
 
-func (m *Module) run() error {
+func (m *Module) run(stop <-chan struct{}) error {
 	cmd := exec.Command("ffmpeg",
 		"-hide_banner", "-loglevel", "error",
 		"-i", m.config.AudioSource.URL,
@@ -107,9 +112,9 @@ func (m *Module) run() error {
 
 	buf := make([]byte, 3840) // 20ms of 48kHz stereo 16-bit PCM (48000 * 2 * 2 * 0.02)
 	for {
-		// Stop reading if stopChan is closed
+		// Stop reading if the stop channel is closed
 		select {
-		case <-m.stopChan:
+		case <-stop:
 			if cmd != nil && cmd.Process != nil {
 				cmd.Process.Kill()
 			}
@@ -141,14 +146,17 @@ func (m *Module) run() error {
 
 func (m *Module) Stop() error {
 	log.Println("[AudioSource] Stopping module...")
-	m.stopOnce.Do(func() {
+
+	m.mu.Lock()
+	if m.stopChan != nil {
 		close(m.stopChan)
-		m.mu.Lock()
-		if m.cmd != nil && m.cmd.Process != nil {
-			m.cmd.Process.Kill()
-		}
-		m.mu.Unlock()
-	})
+		m.stopChan = nil
+	}
+	if m.cmd != nil && m.cmd.Process != nil {
+		m.cmd.Process.Kill()
+	}
+	m.mu.Unlock()
+
 	log.Println("[AudioSource] Stopped successfully.")
 	return nil
 }

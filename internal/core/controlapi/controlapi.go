@@ -68,6 +68,17 @@ var featureToggles = []toggle{
 	{"announce.youtube.enable", "Announce \u2192 YouTube", []string{"announce", "youtube", "enable"}},
 }
 
+// liveToggleModules are modules whose Start/Stop are safe to cycle in-process,
+// so the control API applies their toggles live (no restart needed). The others
+// (Server, ChatFlow) share an HTTP mux that is not yet re-entrant, so they are
+// persist-and-restart.
+var liveToggleModules = map[string]bool{
+	"AudioBridge": true,
+	"Streaming":   true,
+	"AudioSource": true,
+	"Connector":   true,
+}
+
 func lookup(list []toggle, key string) (toggle, bool) {
 	for _, t := range list {
 		if t.Key == key {
@@ -266,6 +277,33 @@ func (s *Server) handleModuleToggle(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
+
+	// Live-apply for modules whose lifecycle is cycle-safe; the settings file was
+	// already updated above, so the running state and the master file stay in
+	// sync without a restart. Start/Stop are guarded by IsRunning so a repeated
+	// toggle is idempotent.
+	if liveToggleModules[req.Name] {
+		var applyErr error
+		if req.Enabled {
+			if !s.manager.IsRunning(req.Name) {
+				applyErr = s.manager.StartModule(req.Name)
+			}
+		} else {
+			if s.manager.IsRunning(req.Name) {
+				applyErr = s.manager.StopModule(req.Name)
+			}
+		}
+		if applyErr != nil {
+			// The change is persisted; only the live application failed.
+			writeJSON(w, http.StatusInternalServerError,
+				map[string]interface{}{"error": applyErr.Error(), "persisted": true})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "restart_required": false})
+		return
+	}
+
+	// Server / ChatFlow: persisted now, applied on the next restart.
 	s.markDirty()
 	writeJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "restart_required": true})
 }
