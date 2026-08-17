@@ -22,11 +22,17 @@ type Module struct {
 
 // NewModule creates a new instance of the Server module.
 func NewModule(cfg *config.Config, ctrl module.Controller, mux *http.ServeMux) *Module {
-	return &Module{
+	m := &Module{
 		config:     cfg,
 		controller: ctrl,
 		mux:        mux,
 	}
+	// Register routes once, at construction, so repeated Start/Stop cycles
+	// (runtime enable/disable) never re-register on the shared mux -- which would
+	// panic. The handler is only reachable while the HTTP listener is up (i.e.
+	// while this module is started), so no extra gating is needed.
+	mux.HandleFunc("/api/gps", m.handleGPS)
+	return m
 }
 
 // Start initializes and starts the Server component.
@@ -38,12 +44,12 @@ func (m *Module) Start() error {
 		port = "8000"
 	}
 
+	// A fresh http.Server per start (over the already-registered mux) makes the
+	// listener safe to bring up and down repeatedly.
 	m.server = &http.Server{
 		Addr:    ":" + port,
 		Handler: m.mux,
 	}
-
-	m.mux.HandleFunc("/api/gps", m.handleGPS)
 
 	go func() {
 		log.Printf("[Server] HTTP server listening on %s", m.server.Addr)

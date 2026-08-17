@@ -16,6 +16,7 @@ type Hub struct {
 	register   chan *Client
 	unregister chan *Client
 	logger     *zap.Logger
+	stopChan   chan struct{}
 }
 
 func NewHub(logger *zap.Logger) *Hub {
@@ -25,12 +26,20 @@ func NewHub(logger *zap.Logger) *Hub {
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 		logger:     logger,
+		stopChan:   make(chan struct{}),
 	}
+}
+
+func (h *Hub) Stop() {
+	close(h.stopChan)
 }
 
 func (h *Hub) Run() {
 	for {
 		select {
+		case <-h.stopChan:
+			h.logger.Info("WebSocket Hub stopped")
+			return
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
