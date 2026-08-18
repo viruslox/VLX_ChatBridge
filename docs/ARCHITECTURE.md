@@ -18,6 +18,7 @@ The system is composed of six primary, independently configurable modules. These
         *   YouTube integration (Live polling for Super Chats, Stickers, and Memberships).
         *   Shared user presence tracker (`PresenceTracker`) across Twitch and YouTube to determine if a user is actively watching the live stream.
         *   Overlay management (Alerts overlay, Chat Media overlay, Emote Wall, and finalized Scenes Overlay with full audio routing and volume controls).
+        *   Cross-platform Announce webhook feature. Enables Discord rich-embed announcements natively for Go-Live and Stream-End statuses across Twitch and YouTube, avoiding duplication and merging alerts via a configurable combine window.
         *   WebSocket Hub (`*websocket.Hub`) for real-time OBS Browser Source communication, featuring strict path validation and Go 1.24+ standards compatibility.
         *   State management via SQLite (`*database.DB`).
         *   Built-in chat commands including `!followage` (fetches Twitch follower data) and `!lottery` (runs a watch-check based lottery utilizing the shared `PresenceTracker`).
@@ -50,6 +51,17 @@ The system is composed of six primary, independently configurable modules. These
     *   **Purpose:** Local IPC integration with `VLX_VisionBridge` exclusively for JSON control commands.
     *   **Components:**
         *   Unix Domain Socket for JSON control events (`/tmp/vlx_control.sock`), receiving events mapped from `events.ControlBroadcastChan`.
+
+## Control API
+
+The `ControlAPI` operates independently of the main hot-swappable modules. It is an always-on backend service that provides a RESTful interface (`/api/status`, `/api/module`, `/api/feature`, `/api/shutdown`) to manage the system via a web GUI.
+
+*   **Security:** Enforces Basic Authentication using the configured `ControlAPI.User` and `ControlAPI.Pass` credentials.
+
+*   **Log Streaming:** Provides an on-demand console for real-time log streaming from systemd via `journalctl`. It securely spawns the process tied to the WebSocket lifecycle and bypasses handshake limitations using a dynamic `ticketManager` with short-lived tokens.
+
+*   **State Management:** Can gracefully restart modules via SIGTERM, with state changes persisted directly to the YAML settings file without disrupting the control layer.
+
 
 ## Telemetry Pipeline
 
