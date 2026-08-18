@@ -281,6 +281,8 @@ control_api:
 
 *   **audio_source**: Allows external SRT audio ingestion to pipe directly into Discord or Streaming modules.
 
+*   **overlay**: Configurable media and audio overlay targets (GPS, Emotes, Alerts, Chat, Scenes). You can selectively enable HTML/WebSocket output, Discord voice output, and SRT Streaming output with individual volume controls per target type.
+*   **youtube**: Built-in YouTube integration capable of polling live chat for Super Chats, Memberships, and unified presence checking.
 *   **connector**: Setup for local IPC UNIX sockets to communicate JSON actions directly with VLX_VisionBridge.
 
 *   **announce**: Cross-platform Discord go-live / stream-end webhook announcer. Supports rich embeds, customizable text, and combines platforms if they go live closely together.
@@ -317,6 +319,19 @@ Ingestion: ChatBridge listens for notifications at the /webhooks/twitch path. En
 Security: Ensure twitch.webhook_secret matches the secret provided in your Twitch Developer Console, as this is used to validate the HMAC signature of every incoming event.
 
 ## Usage
+
+### Web GUI (Frontend)
+VLX_ChatBridge includes an optional standalone frontend executable (`VLX_ChatBridge_frontend`). This executable acts as a reverse proxy that embeds a Svelte 5 Single Page Application, providing a visual interface for the Control API.
+
+To configure the frontend, modify the `frontend.settings` file (copied from `frontend.settings.template` during install). This file allows you to define:
+*   `bind_address` and `bind_port`: The host and port for the GUI web server.
+*   `CB_GUI_USER` and `CB_GUI_PASS`: Basic Auth credentials to access the GUI itself.
+*   `backend_address`, `backend_port`, `backend_user`, `backend_pass`: The connection details corresponding to the `control_api` block in `chatbridge.settings`.
+
+Run the frontend executable alongside the main backend:
+```bash
+/opt/VLX_ChatBridge/bin/VLX_ChatBridge_frontend -config /opt/VLX_ChatBridge/etc/frontend.settings
+```
 
 ### Dynamic File-Based Routing
 
