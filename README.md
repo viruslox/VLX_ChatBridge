@@ -121,78 +121,172 @@ sudo ./VLX_ChatBridge install
 Edit `/opt/VLX_ChatBridge/config.yml` to configure the system. You can use environment variables (e.g., `${ENV_VAR}`).
 
 ```yaml
-modules:
-  chatflow_enabled: yes
-  audiobridge_enabled: yes
-  server_enabled: yes
-  streaming_enabled: yes
-  audio_source_enabled: no
-  connector_enabled: no
-
-server:
-  base_url: "https://your.ngrok.io"
-  path_prefix: "/asortofkey"
-  websocket_path: "/websocket"
-  port: "8000"
-  test_port: "8001"
-
+# VLX ChatBridge User Profile
+chatbridge_USER: "chatbridge"
+chatbridge_DIR: "/opt/VLX_ChatBridge"
 database:
   path: "/opt/VLX_ChatBridge/var/chatbridge.db"
 
+modules:
+  chatflow_enabled: no
+  audiobridge_enabled: no
+  server_enabled: no
+  streaming_enabled: no
+  audio_source_enabled: no
+  connector_enabled: no
+
+# Modules dependency:
+# - discord -> audiobridge
+# - twitch -> chatflow
+# - youtube -> chatflow
+# - overlay -> chatflow
+
+server:
+  # base_url: The public root URL of your server. Example: "https://yourdomain.com"
+  # NOTE: Do not include path_prefix here. Twitch will call: <base_url>/webhooks/twitch
+  base_url: "https://your.ngrok.io"
+  # path_prefix: Internal security token for overlays and API telemetry.
+  path_prefix: "/asortofkey"
+  websocket_path: "/websocket"
+  allowed_origins:
+    - "https://net.example.com"
+    - "http://localhost:8000"
+    - "http://127.0.0.1:8000"
+  # This port is used for scenes/emotes overlays, and ALSO acts as the
+  # ingestion endpoint for FrameFlow's telemetry (e.g., http://10.1.10.1:<PORT>/api/gps)
+  port: "8000"
+  test_port: "8001"
+
+# Recommended to use 2 different accounts, or at least 2 difrerent tokens
+# You can create token with https://twitchtokengenerator.com/
 twitch:
-  # ... Twitch App IDs, Secrets, Tokens ...
+  client_id: "YOUR_TWITCH_APP_CLIENT_ID"
+  client_secret: "YOUR_TWITCH_APP_CLIENT_SECRET"
+  webhook_secret: "YOUR_CUSTOM_WEBHOOK_SECRET"
+  channel_name: "viruslox"
+  chat:
+    bot_username: "<twitch account acting as bot>"
+    bot_id: "YOUR_BOT_NUMERIC_ID"
+    channel_to_join: "<channel name>"
+    command_cooldown: 15  # General cooldown in seconds (default 15)
 
-youtube:
-  # ... YouTube API Key, Channel ID ...
+# YouTube APIs
+youtube: # Leave empty to disable YouTube module
+  api_key: ""
+  channel_id: ""
+  polling_interval: 5  # re-read chat every x seconds; the default is 5
 
+# Enables Overlays creations and reproduction routes: # html -> audio+video overlay via "server" module
+# discord -> audio sent via discord module (to voice channel) # streaming -> audio sent via streaming  module (SRT)
 overlay:
   enable: yes
-  emotes:
+  gps:    # gps_overlay.html
     html: yes
-  alerts:
+    event_type: "gps"  # Configurable listener target for telemetry payloads
+  emotes: # emotes_overlay.html
+    html: yes
+  alerts: # alerts_overlay.html
     html: yes
     discord: yes
     streaming: no
     volume: 75
-  chat:
+  chat: # chat_overlay.html
     html: yes
     discord: yes
     streaming: yes
     volume: 75
-  scenes:
-    enable: yes
+  scenes: # scenes_overlay.html ("owner chat commands")
     html: yes
     discord: yes
     streaming: yes
     volume: 75
 
 discord:
-  token: "YOUR_DISCORD_BOT_TOKEN"
-  prefix: "vlx."
-  admins: []
+  token: ""
+  prefix: "vlx."       # Commands prefix (es. !join, !leave)
+  admins: []           # List of Discord User IDs for bot admins
+  guild_id: "<discord server id>" # Optional, but suggested: Restrict to specific Guild ID
+  # enable or disable the capture of discord voice channel audio via streaming module (SRT)
   streaming: yes
+  # List of Discord User IDs of voice channels partecipante to mute on streaming module
+  excluded_users:
+    - "<discord user id>"
+    - "<discord user id>"
 
 streaming:
   enable: yes
-  destination_url: "srt://127.0.0.1:8890?streamid=publish:vlx_audio&mode=caller&pkt_size=1316"
-  bitrate: "128k"
-  volume: 75
+  # SRT Destination (e.g., MediaMTX) # mode=caller to enable "us" as media sender
+  destination_url: "srt://127.0.0.1:8890?streamid=publish:ChatBridge/<channel>:<srt user>:<srt pass>&mode=caller&pkt_size=1316"
+  bitrate: "128k" # Audio output Bitrate for FFmpeg
+  volume: 75    # 0-100, in percentage
 
 audio_source:
-  enable: no
+  # SRTs source to load and inject into Discord or sent via streaming module.
+  enable: yes
   discord: yes
   streaming: no
-  url: "srt://127.0.0.1:2020?..."
+  url: "srt://some.online.radio"
 
+# VLX Connector configuration (IPC locally for VisionBridge)
+# Enables IPC JSON command routing to VLX_VisionBridge for JSON control commands.
 connector:
+  # Requires connector_enabled: yes in modules block
   ipc_control_out: yes
   control_socket: "/tmp/vlx_control.sock"
 
+# Discord go-live / stream-end announcement (webhook-based, fire-and-forget).
+# Go-live fires when Twitch and/or YouTube confirm live. If both go live within
+# combine_window seconds, they are merged into a single message.
+# Stream-end fires immediately per-platform (no coalescing).
 announce:
   enable: no
   webhook_url: "https://discord.com/api/webhooks/<id>/<token>"
+  username: "VLX Live"      # webhook display-name override (optional)
+  avatar_url: ""            # webhook avatar override; empty = webhook default
+  combine_window: 45        # seconds to wait for a 2nd platform before sending
+  # Go-live placeholders: {platforms} {title} {url}
+  message_template: "🔴 Live now on {platforms}: {title}\n{url}"
+  end_enable: no
+  # End placeholders: {platform} {url}
+  end_message_template: "⚫ {platform} stream has ended."
+  # Rich embeds instead of plain text (coloured side-bar, title, fields, footer).
   embed_enable: no
+  twitch:
+    enable: yes
+  youtube:
+    enable: yes
+
+control_api:
+  enable: yes
+  bind_address: "127.0.0.1"
+  port: "8760"
+  user: "chatbridge"
+  pass: "changeme"
+  log_unit: "vlx_chatbridge"
 ```
+
+### Configuration Options Explained
+
+*   **modules**: Hot-swappable toggle for the 6 primary modules (`chatflow`, `audiobridge`, `server`, `streaming`, `audio_source`, `connector`).
+
+*   **server**: Defines bind ports, routing prefixes, allowed WebSocket origins, and the public `base_url` for Twitch Webhooks.
+
+*   **twitch & youtube**: Credentials, polling intervals, and target channels for chat ingestion and EventSub subscriptions.
+
+*   **overlay**: Master switch and individual targets for Emotes, Alerts, Chat, GPS, and Scenes. Can enable HTML web broadcast and audio routing (Discord/Streaming).
+
+*   **discord**: Bot tokens, admin lists, guild restrictions, and excluded users from stream captures.
+
+*   **streaming**: Configures the SRT egress URL, audio bitrate, and baseline volume.
+
+*   **audio_source**: Allows external SRT audio ingestion to pipe directly into Discord or Streaming modules.
+
+*   **connector**: Setup for local IPC UNIX sockets to communicate JSON actions directly with VLX_VisionBridge.
+
+*   **announce**: Cross-platform Discord go-live / stream-end webhook announcer. Supports rich embeds, customizable text, and combines platforms if they go live closely together.
+
+*   **control_api**: Always-on management backend that provides Basic Auth REST endpoints to toggle features and a WebSockets console to stream journalctl logs.
+
 
 ### Reverse Proxy Configuration
 
