@@ -38,6 +38,7 @@ The system is composed of six primary, independently configurable modules. These
         *   Parses HTML overlay templates to inject dynamic configuration variables (e.g., an inline `<script>` block defining `window.VLX_CONFIG` with `{{.WebsocketPath}}` and `{{.AssetPrefix}}`).
         *   Supports reverse proxy setups via a `path_prefix` configuration token. To ensure correct resolution of absolute paths, the server dynamically clears this prefix for local requests (e.g., OBS Browser Source) when standard proxy headers (`X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`) are absent.
         *   Utilizes a unified frontend styling approach by merging CSS assets into a single `overlay.css` file. Static asset references in HTML templates are reliably resolved using the dynamic `{{.AssetPrefix}}`.
+        *   Listens on a secondary `test_port` for testing alerts (e.g., via `curl`).
 4.  **Streaming Module**
     *   **Purpose:** Manages SRT (Secure Reliable Transport) streaming egress.
     *   **Components:**
@@ -52,14 +53,13 @@ The system is composed of six primary, independently configurable modules. These
     *   **Components:**
         *   Unix Domain Socket for JSON control events (`/tmp/vlx_control.sock`), receiving events mapped from `events.ControlBroadcastChan`.
 
-## Control API
+## Control API & Web GUI (Frontend)
 
 The `ControlAPI` operates independently of the main hot-swappable modules. It is an always-on backend service that provides a RESTful interface (`/api/status`, `/api/module`, `/api/feature`, `/api/shutdown`) to manage the system via a web GUI.
 
 *   **Security:** Enforces Basic Authentication using the configured `ControlAPI.User` and `ControlAPI.Pass` credentials.
-
-*   **Log Streaming:** Provides an on-demand console for real-time log streaming from systemd via `journalctl`. It securely spawns the process tied to the WebSocket lifecycle and bypasses handshake limitations using a dynamic `ticketManager` with short-lived tokens.
-
+*   **Frontend Web GUI:** The system comes with an optional standalone `VLX_ChatBridge_frontend` executable. It acts as a `net/http` reverse proxy that injects backend Control API credentials. It serves a Svelte 5 Single Page Application (SPA), which provides a user-friendly GUI to interact with the Control API. The frontend settings are configured in `frontend.settings` (from `frontend.settings.template`), allowing customization of the bind address, port, and GUI Basic Auth credentials, while securely bridging back to the ChatBridge `control_api` interface.
+*   **Log Streaming:** Provides an on-demand console for real-time log streaming from systemd via `journalctl`. It securely spawns the process tied to the WebSocket lifecycle and bypasses handshake limitations using a dynamic `ticketManager` with short-lived tokens. The target service is defined by `ControlAPI.LogUnit` in the settings file.
 *   **State Management:** Can gracefully restart modules via SIGTERM, with state changes persisted directly to the YAML settings file without disrupting the control layer.
 
 

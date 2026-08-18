@@ -42,6 +42,20 @@ func Run() {
 	}
 	fmt.Println("Copied executable to", destExePath)
 
+	// Determine frontend executable path
+	exeDir := filepath.Dir(exePath)
+	frontendExePath := filepath.Join(exeDir, "VLX_ChatBridge_frontend")
+	if _, err := os.Stat(frontendExePath); err == nil {
+		destFrontendPath := filepath.Join(binDir, "VLX_ChatBridge_frontend")
+		if err := copyFile(frontendExePath, destFrontendPath, 0755); err != nil {
+			log.Printf("Warning: Failed to copy frontend executable to %s: %v", destFrontendPath, err)
+		} else {
+			fmt.Println("Copied frontend executable to", destFrontendPath)
+		}
+	} else {
+		log.Printf("Warning: Frontend executable not found at %s. Skipping frontend install.", frontendExePath)
+	}
+
 	// 4. Configuration Merging
 	handleConfigurationFiles(etcDir)
 
