@@ -7,7 +7,7 @@ VLX ChatBridge integrates streaming-platform events (Twitch, YouTube) with a Dis
 
 > **NOTE:** The idea, logic, architecture, review, and validation were created by VirusLox, with code generation assisted by AI.
 
-For the full system design, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+For the full system design, see **[docs/ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 ---
 
