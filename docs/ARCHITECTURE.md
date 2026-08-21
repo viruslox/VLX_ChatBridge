@@ -17,17 +17,17 @@ The system is composed of six primary, independently configurable modules. These
         *   First-Chatter tracker that floats a user's name on screen when they send their first message in a live session.
         *   YouTube integration (Live polling for Super Chats, Stickers, and Memberships).
         *   Shared user presence tracker (`PresenceTracker`) across Twitch and YouTube to determine if a user is actively watching the live stream.
-        *   Overlay management (Alerts overlay, Chat Media overlay, Emote Wall, and finalized Scenes Overlay with full audio routing and volume controls).
-        *   Cross-platform Announce webhook feature. Enables Discord rich-embed announcements natively for Go-Live and Stream-End statuses across Twitch and YouTube, avoiding duplication and merging alerts via a configurable combine window.
+        *   Overlay management (Alerts overlay, Chat Media overlay, Emote Wall, GPS tracking, and finalized Scenes Overlay). The GPS overlay uses a configurable `event_type` to map specific telemetry payloads to the frontend. All overlays feature extensive audio routing toggles (e.g. streaming, discord) and volume controls.
+        *   Cross-platform Announce webhook feature. Enables Discord rich-embed announcements natively for Go-Live and Stream-End statuses across Twitch and YouTube, avoiding duplication and merging alerts via a configurable `combine_window`.
         *   WebSocket Hub (`*websocket.Hub`) for real-time OBS Browser Source communication, featuring strict path validation and Go 1.24+ standards compatibility.
         *   State management via SQLite (`*database.DB`).
         *   Built-in chat commands including `!followage` (fetches Twitch follower data) and `!lottery` (runs a watch-check based lottery utilizing the shared `PresenceTracker`).
 2.  **AudioBridge Module**
     *   **Purpose:** Handles Discord integration and audio routing to/from Discord.
     *   **Components:**
-        *   Discord Bot integration using the `disgo` library.
+        *   Discord Bot integration using the `disgo` library, with support for an `admins` list to control access to bot features.
         *   Supports Discord's End-to-End Encryption (E2EE/DAVE protocol) using `godave` (`libdave`).
-        *   Voice audio ingestion via custom Opus receiver (using `gopkg.in/hraban/opus.v2`).
+        *   Voice audio ingestion via custom Opus receiver (using `gopkg.in/hraban/opus.v2`). Capturing and streaming Discord voice channel audio via the Streaming module (SRT) can be toggled via the `streaming` flag, and specific users can be ignored using the `excluded_users` list.
         *   Voice audio egress to Discord using a `DiscordPCMSender` implementing `voice.OpusFrameProvider`.
         *   Supports Discord slash commands (`/commands`, `/run`) to list and execute reserved multi_action commands.
 3.  **Server Module**
@@ -51,13 +51,13 @@ The system is composed of six primary, independently configurable modules. These
 6.  **Connector Module**
     *   **Purpose:** Local IPC integration with `VLX_VisionBridge` exclusively for JSON control commands.
     *   **Components:**
-        *   Unix Domain Socket for JSON control events (`/tmp/vlx_control.sock`), receiving events mapped from `events.ControlBroadcastChan`.
+        *   Unix Domain Socket for JSON control events (configured via `control_socket`, defaults to `/tmp/vlx_control.sock`), receiving events mapped from `events.ControlBroadcastChan`. This output is enabled by setting the `ipc_control_out` flag.
 
 ## Control API & Web GUI (Frontend)
 
 The `ControlAPI` operates independently of the main hot-swappable modules. It is an always-on backend service that provides a RESTful interface (`/api/status`, `/api/module`, `/api/feature`, `/api/shutdown`) to manage the system via a web GUI.
 
-*   **Security:** Enforces Basic Authentication using the configured `ControlAPI.User` and `ControlAPI.Pass` credentials.
+*   **Security:** Enforces Basic Authentication using the configured `ControlAPI.User` and `ControlAPI.Pass` credentials. Network binding can be controlled using the `bind_address` and `port` configurations in the `control_api` block.
 *   **Frontend Web GUI:** The system comes with an optional standalone `VLX_ChatBridge_frontend` executable. It acts as a `net/http` reverse proxy that injects backend Control API credentials. It serves a Svelte 5 Single Page Application (SPA), which provides a user-friendly GUI to interact with the Control API. The frontend settings are configured in `frontend.settings` (from `frontend.settings.template`), allowing customization of the bind address, port, and GUI Basic Auth credentials, while securely bridging back to the ChatBridge `control_api` interface.
 *   **Log Streaming:** Provides an on-demand console for real-time log streaming from systemd via `journalctl`. It securely spawns the process tied to the WebSocket lifecycle and bypasses handshake limitations using a dynamic `ticketManager` with short-lived tokens. The target service is defined by `ControlAPI.LogUnit` in the settings file.
 *   **State Management:** Can gracefully restart modules via SIGTERM, with state changes persisted directly to the YAML settings file without disrupting the control layer.

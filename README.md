@@ -321,7 +321,7 @@ Security: Ensure twitch.webhook_secret matches the secret provided in your Twitc
 ## Usage
 
 ### Web GUI (Frontend)
-VLX_ChatBridge includes an optional standalone frontend executable (`VLX_ChatBridge_frontend`). This executable acts as a reverse proxy that embeds a Svelte 5 Single Page Application, providing a visual interface for the Control API.
+VLX_ChatBridge includes an optional standalone frontend executable (`VLX_ChatBridge_frontend`). This executable acts as a reverse proxy that embeds a Svelte 5 Single Page Application, providing a visual interface for the Control API (which can be configured via the `control_api` block with `bind_address`, `port`, `user`, `pass`, and `log_unit` options).
 
 To configure the frontend, modify the `frontend.settings` file (copied from `frontend.settings.template` during install). This file allows you to define:
 *   `bind_address` and `bind_port`: The host and port for the GUI web server.
@@ -333,12 +333,23 @@ Run the frontend executable alongside the main backend:
 /opt/VLX_ChatBridge/bin/VLX_ChatBridge_frontend -config /opt/VLX_ChatBridge/etc/frontend.settings
 ```
 
+You can set up an Apache reverse proxy for the frontend like this:
+
+```apache
+# ===== ChatBridge GUI  (frontend :<port> — console WS at /api/console/ws) =====
+RedirectMatch ^/chatbridge$    /chatbridge/
+
+ProxyPass        /chatbridge/api/console/ws   ws://127.0.0.1:<port>/api/console/ws
+ProxyPass        /chatbridge/                 http://127.0.0.1:<port>/
+ProxyPassReverse /chatbridge/                 http://127.0.0.1:<port>/
+```
+
 ### Dynamic File-Based Routing
 
 ChatBridge parses text files dropped into `static/chat/` to generate commands on the fly. By adding special blocks to these files, you can trigger routing to VisionBridge or FrameFlow.
 
 **1. ZMQ Control Example (VisionBridge)**
-Create a file at `static/chat/owner_cam1.txt` to trigger a scene change in VLX_VisionBridge via local IPC. The `owner_` prefix ensures only the broadcaster can run `!cam1`.
+Create a file at `static/chat/owner_cam1.txt` to trigger a scene change in VLX_VisionBridge via local IPC. The `owner_` prefix ensures only the broadcaster can run `!cam1`. This requires the `connector` block in settings to have `ipc_control_out: yes` and a valid `control_socket`.
 ```ini
 [ZMQ_CONTROL]
 Target=stream
@@ -404,6 +415,9 @@ ChatBridge natively supports several built-in commands for stream interaction.
     *   **Broadcaster/Mod Commands:** `!lottery start [time]` (e.g. `!lottery start 10m` to require the winner to be actively watching for the last 10 minutes), `!lottery draw`, `!lottery end`.
     *   **User Commands:** `!lottery join`.
     *   The watch-check evaluates chat activity across both Twitch and YouTube seamlessly using a shared presence tracker.
+
+### Cross-platform Announcements
+Configure the `announce` block to automatically notify Discord when streams go live or end. If both Twitch and YouTube go live within `combine_window` seconds, they are merged into a single Discord webhook notification. You can customize the Discord message formatting and toggle rich embed support (`embed_enable`).
 
 ### Discord Commands
 *   `vlx.join` : Bot joins your voice channel and starts the SRT stream.
