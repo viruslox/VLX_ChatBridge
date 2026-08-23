@@ -133,17 +133,6 @@ func (m *Module) controlWriterLoop(stop <-chan struct{}) {
 					Target:    target,
 					Payload:   payload,
 				}
-				eventsToSend = append(eventsToSend, connectorEvent)
-			} else {
-				// For non-control events, just pass through
-				connectorEvent := ConnectorPayload{
-					EventID:   uuid.New().String(),
-					Timestamp: time.Now().Unix(),
-					Action:    "trigger_event",
-					Target:    eventType,
-					Payload:   innerPayload,
-				}
-				eventsToSend = append(eventsToSend, connectorEvent)
 			}
 
 			for _, ev := range eventsToSend {

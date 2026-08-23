@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const expectedType = (window.VLX_CONFIG && window.VLX_CONFIG.GPS_EVENT_TYPE) || 'gps';
 
                 // Explicitly ignore all other events
-                if (msg.type !== expectedType && msg.type !== 'gps_update') return;
+                if (msg.type !== expectedType) return;
 
                 if (msg.data) {
                     const data = msg.data;
