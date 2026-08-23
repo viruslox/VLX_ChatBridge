@@ -133,8 +133,8 @@ func (m *Module) controlWriterLoop(stop <-chan struct{}) {
 					Target:    target,
 					Payload:   payload,
 				}
+				eventsToSend = append(eventsToSend, connectorEvent)
 			}
-
 			for _, ev := range eventsToSend {
 				outData, err := json.Marshal(ev)
 				if err != nil {
