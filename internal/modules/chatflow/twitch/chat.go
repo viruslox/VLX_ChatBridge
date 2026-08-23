@@ -39,15 +39,9 @@ type ActionPayload map[string]interface{}
 type CommandData struct {
 	Filename          string
 	Permission        string
-	MediaType         string // "audio", "video", "ipc_control", "webhook", or "multi_action"
+	MediaType         string // "audio", "video", or "multi_action"
 	IsBroadcasterOnly bool
 	Description       string
-	ZMQTarget         string
-	ZMQEnabled        bool
-	ZMQAction         string
-	ZMQPath           string
-	WebhookURL        string
-	WebhookMethod     string
 	AutoDelete        bool
 	Actions           []ActionPayload
 }
@@ -182,12 +176,6 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 		}
 
 		var mediaType string
-		var zmqTarget string
-		var zmqEnabled bool
-		var zmqAction string = "set_input_state"
-		var zmqPath string
-		var webhookURL string
-		var webhookMethod string
 		var autoDelete bool
 		var actions []ActionPayload
 		var description string
@@ -205,86 +193,21 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 			}
 
 			var multiAction struct {
-					AutoDelete  bool            `json:"auto_delete"`
-					Description string          `json:"description"`
-					Actions     []ActionPayload `json:"actions"`
+				AutoDelete  bool            `json:"auto_delete"`
+				Description string          `json:"description"`
+				Actions     []ActionPayload `json:"actions"`
 			}
 
 			if err := json.Unmarshal(contentBytes, &multiAction); err == nil && len(multiAction.Actions) > 0 {
 				actions = multiAction.Actions
 				autoDelete = multiAction.AutoDelete
-					description = multiAction.Description
-			} else if err := json.Unmarshal(contentBytes, &actions); err != nil {
+				description = multiAction.Description
+				mediaType = "multi_action"
+			} else if err := json.Unmarshal(contentBytes, &actions); err == nil && len(actions) > 0 {
+				mediaType = "multi_action"
+			} else {
 				logger.Warn("Invalid JSON in command file", zap.String("filename", filename), zap.Error(err))
 				continue
-			}
-
-			mediaType = "multi_action"
-		case ".txt":
-			contentBytes, err := os.ReadFile(filepath.Join(fullPath, filename))
-			if err != nil {
-				logger.Warn("Failed to read text command file", zap.String("filename", filename), zap.Error(err))
-				continue
-			}
-			content := string(contentBytes)
-			if strings.Contains(content, "[ZMQ_CONTROL]") {
-				mediaType = "ipc_control"
-				lines := strings.Split(content, "\n")
-				for _, line := range lines {
-					line = strings.TrimSpace(line)
-					if strings.HasPrefix(line, "Target=") {
-						zmqTarget = strings.TrimPrefix(line, "Target=")
-					} else if strings.HasPrefix(line, "Enabled=") {
-						val := strings.ToLower(strings.TrimPrefix(line, "Enabled="))
-						zmqEnabled = (val == "true" || val == "yes" || val == "1")
-					} else if strings.HasPrefix(line, "Action=") {
-						zmqAction = strings.TrimPrefix(line, "Action=")
-					} else if strings.HasPrefix(line, "Path=") {
-						zmqPath = strings.TrimPrefix(line, "Path=")
-					} else if strings.HasPrefix(line, "AutoDelete=") {
-						val := strings.ToLower(strings.TrimPrefix(line, "AutoDelete="))
-						if val == "true" {
-							autoDelete = true
-						}
-					} else if strings.HasPrefix(line, "Description=") {
-						description = strings.TrimPrefix(line, "Description=")
-					}
-				}
-			} else if strings.Contains(content, "[WEBHOOK]") {
-				mediaType = "webhook"
-				lines := strings.Split(content, "\n")
-				for _, line := range lines {
-					line = strings.TrimSpace(line)
-					if strings.HasPrefix(line, "Method=") {
-						webhookMethod = strings.TrimPrefix(line, "Method=")
-					} else if strings.HasPrefix(line, "URL=") {
-						webhookURL = strings.TrimPrefix(line, "URL=")
-					} else if strings.HasPrefix(line, "AutoDelete=") {
-						val := strings.ToLower(strings.TrimPrefix(line, "AutoDelete="))
-						if val == "true" {
-							autoDelete = true
-						}
-					} else if strings.HasPrefix(line, "Description=") {
-						description = strings.TrimPrefix(line, "Description=")
-					}
-				}
-			} else {
-				var multiAction struct {
-					AutoDelete  bool            `json:"auto_delete"`
-					Description string          `json:"description"`
-					Actions     []ActionPayload `json:"actions"`
-				}
-
-				if err := json.Unmarshal(contentBytes, &multiAction); err == nil && len(multiAction.Actions) > 0 {
-					actions = multiAction.Actions
-					autoDelete = multiAction.AutoDelete
-					description = multiAction.Description
-					mediaType = "multi_action"
-				} else if err := json.Unmarshal(contentBytes, &actions); err == nil && len(actions) > 0 {
-					mediaType = "multi_action"
-				} else {
-					continue
-				}
 			}
 		default:
 			continue
@@ -301,12 +224,6 @@ func scanCommandFolder(baseDir, folderName, permission string, commands AudioCom
 				MediaType:         mediaType,
 				IsBroadcasterOnly: isBroadcasterOnly,
 				Description:       description,
-				ZMQTarget:         zmqTarget,
-				ZMQEnabled:        zmqEnabled,
-				ZMQAction:         zmqAction,
-				ZMQPath:           zmqPath,
-				WebhookURL:        webhookURL,
-				WebhookMethod:     webhookMethod,
 				AutoDelete:        autoDelete,
 				Actions:           actions,
 			}
@@ -819,11 +736,12 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 
 	if lookup.cmdData.MediaType == "multi_action" {
 		for _, action := range lookup.cmdData.Actions {
-			actionType, _ := action["type"].(string)
+			transport, _ := action["transport"].(string)
 
-			if actionType == "ipc_control" {
+			if transport == "ipc" {
 				action["is_broadcaster"] = isBroadcaster
 				action["command"] = "!" + commandName
+				action["type"] = "ipc_control"
 
 				c.hub.BroadcastJSON(action)
 
@@ -835,7 +753,7 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 					}
 				}
 
-			} else if actionType == "http_request" {
+			} else if transport == "webhook" {
 				go func(reqData ActionPayload) {
 					method, _ := reqData["method"].(string)
 					url, _ := reqData["url"].(string)
@@ -844,7 +762,7 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 					}
 
 					var reqBody io.Reader
-					if bodyData, ok := reqData["body"]; ok {
+					if bodyData, ok := reqData["payload"]; ok {
 						jsonBody, _ := json.Marshal(bodyData)
 						reqBody = bytes.NewBuffer(jsonBody)
 					}
@@ -862,6 +780,8 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 							}
 						}
 					}
+					
+					req.Header.Set("Content-Type", "application/json")
 
 					resp, err := http.DefaultClient.Do(req)
 					if err != nil {
@@ -874,50 +794,6 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 				}(action)
 			}
 		}
-		return
-	}
-
-	if lookup.cmdData.MediaType == "ipc_control" {
-		payload := map[string]interface{}{
-			"type":           "ipc_control",
-			"command":        "!" + commandName,
-			"is_broadcaster": isBroadcaster,
-			"action":         lookup.cmdData.ZMQAction,
-			"target":         lookup.cmdData.ZMQTarget,
-			"enabled":        lookup.cmdData.ZMQEnabled,
-			"path":           lookup.cmdData.ZMQPath,
-		}
-		c.hub.BroadcastJSON(payload)
-
-		// If control event, broadcast it globally as well
-		outData, err := json.Marshal(payload)
-		if err == nil {
-			// This makes it available to the connector module natively
-			select {
-			case events.ControlBroadcastChan <- outData:
-			default:
-			}
-		}
-
-		return
-	}
-
-	if lookup.cmdData.MediaType == "webhook" {
-		go func() {
-			req, err := http.NewRequest(lookup.cmdData.WebhookMethod, lookup.cmdData.WebhookURL, nil)
-			if err != nil {
-				c.logger.Error("Failed to create webhook request", zap.String("command", commandName), zap.Error(err))
-				return
-			}
-
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				c.logger.Error("Failed to execute webhook", zap.String("command", commandName), zap.Error(err))
-				return
-			}
-			defer resp.Body.Close()
-			c.logger.Info("Webhook fired", zap.String("command", commandName))
-		}()
 		return
 	}
 

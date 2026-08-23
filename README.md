@@ -291,25 +291,46 @@ ProxyPassReverse /chatbridge/                 http://127.0.0.1:<port>/
 
 ChatBridge parses text files dropped into `static/chat/` to generate commands on the fly. Special blocks route to the sibling services.
 
-**1. VisionBridge control (IPC / Unix socket)** — create `static/chat/owner_cam1.txt`. Requires `connector.ipc_control_out: yes` and a valid `control_socket`. *(The `[ZMQ_CONTROL]` label is legacy — the transport is a Unix socket, not ZeroMQ.)*
-```ini
-[ZMQ_CONTROL]
-Target=stream
-Enabled=true
+**1. VisionBridge control (IPC / Unix socket)** — create `static/chat/owner_cam1.json`. Requires `connector.ipc_control_out: yes` and a valid `control_socket`.
+```json
+{
+  "description": "Switch to Camera 1",
+  "auto_delete": true,
+  "actions": [
+    {
+      "transport": "ipc",
+      "action": "set_input_state",
+      "target": "stream",
+      "payload": {
+        "enabled": true
+      }
+    }
+  ]
+}
 ```
-Supported targets/actions map to the [Connector contract](docs/ARCHITECTURE.md#1-connector-ipc-contract--chatbridge--visionbridge): `Target=stream`, `Target=overlay@layerN`, `Target=volume@layerN`, and `Action=reload` with `Target=chromium`.
+Supported targets/actions map to the [Connector contract](docs/ARCHITECTURE.md#1-connector-ipc-contract--chatbridge--visionbridge): `target: stream`, `target: overlay@layerN`, `target: volume@layerN`, and `action: reload` with `target: chromium`.
 
-**2. FrameFlow control (HTTP relay)** — create `static/chat/owner_cam_start.txt`. Target the FrameFlow **Server relay** on port **9090** (not `8080`, which is the FrameFlow UI), using a real relay verb:
-```ini
-[WEBHOOK]
-Method=POST
-URL=http://127.0.0.1:9090/api/v1/relay/cameraman/start
-Body={"device": "V0A1"}
+**2. FrameFlow control (HTTP relay)** — create `static/chat/owner_cam_start.json`. Target the FrameFlow **Server relay** on port **9090** (not `8080`, which is the FrameFlow UI), using a real relay verb:
+```json
+{
+  "description": "Start field unit camera",
+  "auto_delete": true,
+  "actions": [
+    {
+      "transport": "webhook",
+      "method": "POST",
+      "url": "http://127.0.0.1:9090/api/v1/relay/cameraman/start",
+      "payload": {
+        "device": "V0A1"
+      }
+    }
+  ]
+}
 ```
 > Valid relay verbs: `cameraman/{start,stop,status}`, `mediamtx/{start,stop,status}`, `gps/{start,stop,status}`, `frameflow/{client,ap,bonding}/…`. See the [Command/webhook contract](docs/ARCHITECTURE.md#2-command--webhook-contract-chatbridge--frameflow).
 
-### Stealth mode (AutoDelete)
-Both `[ZMQ_CONTROL]` and `[WEBHOOK]` files support `AutoDelete=true` to silently execute commands: ChatBridge uses DB-refreshed Helix tokens to delete the invoking chat message. Multi-action `.json` files support `"auto_delete": true`, an optional `"description"`, and an `"actions"` array.
+### Stealth mode (auto_delete)
+Commands support `"auto_delete": true` to silently execute commands: ChatBridge uses DB-refreshed Helix tokens to delete the invoking chat message.
 
 ---
 

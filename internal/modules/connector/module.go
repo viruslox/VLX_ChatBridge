@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -118,71 +117,21 @@ func (m *Module) controlWriterLoop(stop <-chan struct{}) {
 
 			var eventsToSend []ConnectorPayload
 
-			// NEW BLOCK: Intercept legacy [ZMQ_CONTROL] text commands
-			textVal, hasText := innerPayload["text"].(string)
-			if hasText && strings.HasPrefix(strings.TrimSpace(textVal), "[ZMQ_CONTROL]") {
-				lines := strings.Split(textVal, "\n")
-				var target string
-				var enabled bool
-				action := "set_input_state" // default
-				var path string
-
-				for _, line := range lines {
-					line = strings.TrimSpace(line)
-					if strings.HasPrefix(line, "Target=") {
-						target = strings.TrimPrefix(line, "Target=")
-					} else if strings.HasPrefix(line, "Enabled=") {
-						val := strings.ToLower(strings.TrimPrefix(line, "Enabled="))
-						enabled = (val == "true")
-					} else if strings.HasPrefix(line, "Action=") {
-						action = strings.TrimPrefix(line, "Action=")
-					} else if strings.HasPrefix(line, "Path=") {
-						path = strings.TrimPrefix(line, "Path=")
-					}
-				}
-
-				if target != "" {
-					parsedEvent := ConnectorPayload{
-						EventID:   uuid.New().String(),
-						Timestamp: time.Now().Unix(),
-						Action:    action,
-						Target:    target,
-					}
-					if action == "set_input_state" {
-						if path != "" {
-							parsedEvent.Payload = map[string]interface{}{"enabled": enabled, "text": path}
-						} else {
-							parsedEvent.Payload = map[string]interface{}{"enabled": enabled}
-						}
-					} else {
-						parsedEvent.Payload = map[string]interface{}{}
-					}
-					eventsToSend = append(eventsToSend, parsedEvent)
-				}
-			} else if eventType == "ipc_control" {
+			if eventType == "ipc_control" {
 				// Parse dynamic IPC payload from ChatFlow
 				action, _ := innerPayload["action"].(string)
 				if action == "" {
 					action = "set_input_state"
 				}
 				target, _ := innerPayload["target"].(string)
-				enabled, _ := innerPayload["enabled"].(bool)
-				path, _ := innerPayload["path"].(string)
+				payload, _ := innerPayload["payload"]
 
 				connectorEvent := ConnectorPayload{
 					EventID:   uuid.New().String(),
 					Timestamp: time.Now().Unix(),
 					Action:    action,
 					Target:    target,
-				}
-				if action == "set_input_state" {
-					if path != "" {
-						connectorEvent.Payload = map[string]interface{}{"enabled": enabled, "text": path}
-					} else {
-						connectorEvent.Payload = map[string]interface{}{"enabled": enabled}
-					}
-				} else {
-					connectorEvent.Payload = map[string]interface{}{}
+					Payload:   payload,
 				}
 				eventsToSend = append(eventsToSend, connectorEvent)
 			} else {

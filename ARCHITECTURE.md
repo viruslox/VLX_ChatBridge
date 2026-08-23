@@ -86,7 +86,7 @@ The reference deployment is a **single VPS** that co-hosts the FrameFlow Server,
 
 ### 1. Connector (IPC) contract — ChatBridge → VisionBridge
 
-Transport: **newline-delimited JSON over a Unix domain socket** (`/tmp/vlx_control.sock`). ChatBridge is the writer (`connector.ipc_control_out`); VisionBridge is the listener (`connector.ipc_control_in`). *(There is no ZeroMQ; the legacy token `[ZMQ_CONTROL]` is retained only for backward compatibility in command files.)*
+Transport: **newline-delimited JSON over a Unix domain socket** (`/tmp/vlx_control.sock`). ChatBridge is the writer (`connector.ipc_control_out`); VisionBridge is the listener (`connector.ipc_control_in`).
 
 Envelope:
 
@@ -101,8 +101,6 @@ Envelope:
 | `set_input_state` | `volume@layerN` | `{text="0..100"}` | Set Z-layer *N* volume (live, no restart). |
 | `reload` | `chromium` | `{}` | Restart the Chromium DOM engine. |
 | `apply_template` | — | `{text=template_filename}` | Apply a stored Z-layout template. |
-
-**Known limitation (see incongruousness log):** ChatBridge's `[ZMQ_CONTROL]`/`ipc_control` parser only forwards the `text`/`path` field for `set_input_state`; `apply_template` cannot yet carry its template name from ChatBridge, and pass-through events emitted as `trigger_event` are not recognised by VisionBridge. Drive `apply_template` over the socket directly until the parser is extended.
 
 ### 2. Command / webhook contract — ChatBridge → FrameFlow
 
@@ -161,9 +159,10 @@ Replaces the legacy PHP/Apache polling model. **Sender:** FrameFlow POSTs JSON t
 
 `ChatFlow` parses files in `static/chat/` into a command map (built synchronously, swapped atomically, guarded by `sync.RWMutex` for safe hot-reload):
 
-- `[ZMQ_CONTROL]` block → tagged `ipc_control` → routed to the Connector.
-- `[WEBHOOK]` block → asynchronous HTTP POST to the FrameFlow relay.
-- `AutoDelete` → a Helix API delete using the DB-refreshed broadcaster token (`GetTwitchCredentials`), falling back to the static config token only if the DB lookup fails.
+- `.json` files define single or multi-step arrays of `actions`.
+- `transport: ipc` → routed to the Connector via Unix socket.
+- `transport: webhook` → asynchronous HTTP POST to the FrameFlow relay or MediaMTX.
+- `auto_delete: true` → a Helix API delete using the DB-refreshed broadcaster token (`GetTwitchCredentials`), falling back to the static config token only if the DB lookup fails.
 
 Commands are routed asynchronously via `events.ControlBroadcastChan` so the chat loop never blocks; the `Connector` intercepts these broadcasts for downstream IPC.
 

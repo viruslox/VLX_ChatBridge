@@ -1,11 +1,14 @@
 package youtube
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -404,21 +407,64 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 
 	c.logger.Info("YouTube Command Triggered", zap.String("command", commandName), zap.String("user", author.DisplayName))
 
-	if cmdData.MediaType == "ipc_control" {
-		payload := map[string]interface{}{
-			"type":           "ipc_control",
-			"command":        "!" + commandName,
-			"is_broadcaster": author.IsChatOwner,
-			"target":         cmdData.ZMQTarget,
-			"enabled":        cmdData.ZMQEnabled,
-		}
-		c.hub.BroadcastJSON(payload)
+	if cmdData.MediaType == "multi_action" {
+		for _, action := range cmdData.Actions {
+			transport, _ := action["transport"].(string)
 
-		outData, err := json.Marshal(payload)
-		if err == nil {
-			select {
-			case events.ControlBroadcastChan <- outData:
-			default:
+			if transport == "ipc" {
+				action["is_broadcaster"] = author.IsChatOwner
+				action["command"] = "!" + commandName
+				action["type"] = "ipc_control"
+
+				c.hub.BroadcastJSON(action)
+
+				outData, err := json.Marshal(action)
+				if err == nil {
+					select {
+					case events.ControlBroadcastChan <- outData:
+					default:
+					}
+				}
+
+			} else if transport == "webhook" {
+				go func(reqData twitch.ActionPayload) {
+					method, _ := reqData["method"].(string)
+					url, _ := reqData["url"].(string)
+					if method == "" || url == "" {
+						return
+					}
+
+					var reqBody io.Reader
+					if bodyData, ok := reqData["payload"]; ok {
+						jsonBody, _ := json.Marshal(bodyData)
+						reqBody = bytes.NewBuffer(jsonBody)
+					}
+
+					req, err := http.NewRequest(method, url, reqBody)
+					if err != nil {
+						c.logger.Error("Failed to create multi_action http request", zap.String("command", commandName), zap.Error(err))
+						return
+					}
+
+					if headers, ok := reqData["headers"].(map[string]interface{}); ok {
+						for k, v := range headers {
+							if valStr, isStr := v.(string); isStr {
+								req.Header.Set(k, valStr)
+							}
+						}
+					}
+					
+					req.Header.Set("Content-Type", "application/json")
+
+					resp, err := http.DefaultClient.Do(req)
+					if err != nil {
+						c.logger.Error("Failed to execute multi_action http request", zap.String("command", commandName), zap.Error(err))
+						return
+					}
+					defer resp.Body.Close()
+
+					c.logger.Info("Multi-action HTTP request fired", zap.String("command", commandName), zap.String("url", url))
+				}(action)
 			}
 		}
 		return
