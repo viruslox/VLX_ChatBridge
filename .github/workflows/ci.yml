@@ -14,7 +14,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update
-          apt-get install -y git golang-go clang pkg-config libopus-dev libopusfile-dev cmake build-essential curl unzip tar tree ffmpeg
+          apt-get install -y git golang-go clang pkg-config libopus-dev libopusfile-dev cmake build-essential curl unzip tar tree ffmpeg npm nodejs
 
       - name: Install libdave
         run: |
