@@ -30,9 +30,10 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
 	"github.com/disgoorg/snowflake/v2"
+	"go.uber.org/zap"
 
-	coreaudio "VLX_ChatBridge/internal/core/audio"
 	coreevents "VLX_ChatBridge/internal/core/events"
+	chataudio "VLX_ChatBridge/internal/modules/chatflow/audio"
 	chattwitch "VLX_ChatBridge/internal/modules/chatflow/twitch"
 )
 
@@ -155,7 +156,7 @@ func (b *DiscordBot) handleSlashRun(data discord.SlashCommandInteractionData, e 
 
 	if cmd.MediaType == "audio" || cmd.MediaType == "video" {
 		fullPath := filepath.Join(b.chatBridgeDIR, "static", "chat", cmd.Filename)
-		go coreaudio.PlayAlert("chat_command_"+name, fullPath, b.discordStreamingEnabled, true, 100)
+		go chataudio.PlayAlert("chat_command_"+name, fullPath, b.discordStreamingEnabled, true, 100)
 		return e.CreateMessage(ephemeral(fmt.Sprintf("Executed %q (media alert triggered).", name)))
 	}
 
