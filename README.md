@@ -299,10 +299,9 @@ ChatBridge parses text files dropped into `static/chat/` to generate commands on
   "actions": [
     {
       "transport": "ipc",
-      "action": "set_input_state",
-      "target": "stream",
+      "action": "apply_template",
       "payload": {
-        "enabled": true
+        "text": "camera1_layout.yaml"
       }
     }
   ]

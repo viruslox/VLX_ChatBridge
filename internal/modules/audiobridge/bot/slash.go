@@ -15,10 +15,13 @@ package bot
 // to multi_action (JSON) commands.
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -28,6 +31,7 @@ import (
 	"github.com/disgoorg/disgo/handler"
 	"github.com/disgoorg/snowflake/v2"
 
+	coreaudio "VLX_ChatBridge/internal/core/audio"
 	coreevents "VLX_ChatBridge/internal/core/events"
 	chattwitch "VLX_ChatBridge/internal/modules/chatflow/twitch"
 )
@@ -145,13 +149,19 @@ func (b *DiscordBot) handleSlashRun(data discord.SlashCommandInteractionData, e 
 	if !ok {
 		return e.CreateMessage(ephemeral(fmt.Sprintf("Unknown command: %q", name)))
 	}
-	if cmd.MediaType != "multi_action" {
-		return e.CreateMessage(ephemeral(fmt.Sprintf("Command %q is not runnable from Discord (only multi-action/JSON commands are).", name)))
+	if !cmd.IsBroadcasterOnly {
+		return e.CreateMessage(ephemeral(fmt.Sprintf("Command %q is not an owner-only command.", name)))
+	}
+
+	if cmd.MediaType == "audio" || cmd.MediaType == "video" {
+		fullPath := filepath.Join(b.chatBridgeDIR, "static", "chat", cmd.Filename)
+		go coreaudio.PlayAlert("chat_command_"+name, fullPath, b.discordStreamingEnabled, true, 100)
+		return e.CreateMessage(ephemeral(fmt.Sprintf("Executed %q (media alert triggered).", name)))
 	}
 
 	emitted := b.emitMultiAction(name, cmd)
 	if emitted == 0 {
-		return e.CreateMessage(ephemeral(fmt.Sprintf("Command %q had no runnable ipc_control actions.", name)))
+		return e.CreateMessage(ephemeral(fmt.Sprintf("Command %q had no runnable ipc or webhook actions.", name)))
 	}
 	return e.CreateMessage(ephemeral(fmt.Sprintf("Executed %q (%d action(s) dispatched).", name, emitted)))
 }
@@ -161,23 +171,64 @@ func (b *DiscordBot) handleSlashRun(data discord.SlashCommandInteractionData, e 
 func (b *DiscordBot) emitMultiAction(name string, cmd chattwitch.CommandData) int {
 	emitted := 0
 	for _, action := range cmd.Actions {
-		actionType, _ := action["type"].(string)
-		if actionType != "ipc_control" {
-			continue
-		}
-		// Annotate like the chat path does, so downstream consumers match.
-		action["is_broadcaster"] = true
-		action["command"] = "!" + name
+		transport, _ := action["transport"].(string)
 
-		outData, err := json.Marshal(action)
-		if err != nil {
-			continue
-		}
-		select {
-		case coreevents.ControlBroadcastChan <- outData:
+		if transport == "ipc" {
+			// Annotate like the chat path does, so downstream consumers match.
+			action["is_broadcaster"] = true
+			action["command"] = "!" + name
+			action["type"] = "ipc_control"
+
+			outData, err := json.Marshal(action)
+			if err != nil {
+				continue
+			}
+			select {
+			case coreevents.ControlBroadcastChan <- outData:
+				emitted++
+			default:
+				// Channel full; skip rather than block the interaction.
+			}
+		} else if transport == "webhook" {
+			go func(reqData chattwitch.ActionPayload) {
+				method, _ := reqData["method"].(string)
+				url, _ := reqData["url"].(string)
+				if method == "" || url == "" {
+					return
+				}
+
+				var reqBody io.Reader
+				if bodyData, ok := reqData["payload"]; ok {
+					jsonBody, _ := json.Marshal(bodyData)
+					reqBody = bytes.NewBuffer(jsonBody)
+				}
+
+				req, err := http.NewRequest(method, url, reqBody)
+				if err != nil {
+					b.zapLogger.Error("Failed to create multi_action http request", zap.String("command", name), zap.Error(err))
+					return
+				}
+
+				if headers, ok := reqData["headers"].(map[string]interface{}); ok {
+					for k, v := range headers {
+						if valStr, isStr := v.(string); isStr {
+							req.Header.Set(k, valStr)
+						}
+					}
+				}
+
+				req.Header.Set("Content-Type", "application/json")
+
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					b.zapLogger.Error("Failed to execute multi_action http request", zap.String("command", name), zap.Error(err))
+					return
+				}
+				defer resp.Body.Close()
+
+				b.zapLogger.Info("Multi-action HTTP request fired", zap.String("command", name), zap.String("url", url))
+			}(action)
 			emitted++
-		default:
-			// Channel full; skip rather than block the interaction.
 		}
 	}
 	return emitted
@@ -202,7 +253,7 @@ func (b *DiscordBot) buildCommandList() string {
 	sb.WriteString("`/leave` — bot stops streaming and disconnects\n")
 	sb.WriteString("`/reload` — reload the AudioBridge module\n")
 	sb.WriteString("`/shutdown confirm:true` — shut down VLX_ChatBridge\n")
-	sb.WriteString("`/run <command>` — run a reserved multi-action command\n")
+	sb.WriteString("`/run <command>` — run a reserved owner command\n")
 
 	cmds := b.scanCommands()
 
@@ -223,10 +274,7 @@ func (b *DiscordBot) buildCommandList() string {
 
 	for _, name := range reserved {
 		data := cmds[name]
-		runnable := ""
-		if data.MediaType == "multi_action" {
-			runnable = " *(runnable via /run)*"
-		}
+		runnable := " *(runnable via /run)*"
 		if strings.TrimSpace(data.Description) != "" {
 			sb.WriteString(fmt.Sprintf("`!%s`%s — %s\n", name, runnable, data.Description))
 		} else {
