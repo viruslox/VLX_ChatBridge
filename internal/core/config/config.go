@@ -177,7 +177,6 @@ type ControlAPIConfig struct {
 	Port     string    `yaml:"port"`
 	User     string    `yaml:"user"`
 	Pass     string    `yaml:"pass"`
-	LogUnit  string    `yaml:"log_unit"`
 }
 
 // LoadConfig reads and parses the configuration file at the given path.

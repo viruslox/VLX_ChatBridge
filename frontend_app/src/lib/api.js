@@ -20,12 +20,7 @@ export function shutdown() {
   return post("api/shutdown", {});
 }
 
-export async function consoleTicket() {
-  const r = await fetch("api/console/ticket");
-  if (!r.ok) throw new Error("console ticket failed: " + r.status);
-  const data = await r.json();
-  return data.ticket;
-}
+
 
 async function post(url, body) {
   const r = await fetch(url, {

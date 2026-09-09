@@ -142,4 +142,3 @@ control_api:
   port: "8760"
   user: "chatbridge"
   pass: "changeme"
-  log_unit: "vlx_chatbridge"

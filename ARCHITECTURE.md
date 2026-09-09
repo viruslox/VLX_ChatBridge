@@ -149,7 +149,7 @@ A central `ModuleManager` (`internal/core/module`) exposes a `module.Controller`
 
 ## Control API & Web GUI
 
-`ControlAPI` is always-on and independent of the hot-swappable modules: Basic-Auth REST (`/api/status`, `/api/module`, `/api/feature`, `/api/shutdown`) on `bind_address:port` (default `127.0.0.1:8760`), plus an on-demand `journalctl` console over WebSocket (spawned per connection, authorised via short-lived tickets; target unit from `ControlAPI.LogUnit`). Module state changes are persisted to the YAML settings file (node-tree edits preserve comments and `${ENV}` refs) without disrupting the control layer. The optional `VLX_ChatBridge_frontend` binary reverse-proxies a Svelte 5 SPA to this API.
+`ControlAPI` is always-on and independent of the hot-swappable modules: Basic-Auth REST (`/api/status`, `/api/module`, `/api/feature`, `/api/shutdown`) on `bind_address:port` (default `127.0.0.1:8760`). Module state changes are persisted to the YAML settings file (node-tree edits preserve comments and `${ENV}` refs) without disrupting the control layer. The optional `VLX_ChatBridge_frontend` binary reverse-proxies a Svelte 5 SPA to this API.
 
 ## Telemetry pipeline
 

@@ -1,8 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import { getStatus, toggleModule, toggleFeature, shutdown } from "./lib/api.js";
-  import Console from "./lib/Console.svelte";
-
   let status = $state({ modules: [], features: [], restart_pending: false });
   let error = $state("");
   let busy = $state(false);
@@ -116,10 +114,7 @@
     </div>
   </section>
 
-  <section class="card">
-    <h2>Console</h2>
-    <Console />
-  </section>
+
 
   <section class="card danger">
     <h2>Service</h2>

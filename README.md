@@ -248,7 +248,6 @@ control_api:
   port: "8760"
   user: "chatbridge"
   pass: "changeme"
-  log_unit: "vlx_chatbridge"
 ```
 
 ### Reverse proxy (overlays / webhooks)
@@ -278,9 +277,8 @@ ChatBridge ships an optional `VLX_ChatBridge_frontend` binary: a `net/http` reve
 ```
 
 ```apache
-# ===== ChatBridge GUI  (frontend :<port> — console WS at /api/console/ws) =====
+# ===== ChatBridge GUI  (frontend :<port>) =====
 RedirectMatch ^/chatbridge$    /chatbridge/
-ProxyPass        /chatbridge/api/console/ws   ws://127.0.0.1:<port>/api/console/ws
 ProxyPass        /chatbridge/                 http://127.0.0.1:<port>/
 ProxyPassReverse /chatbridge/                 http://127.0.0.1:<port>/
 ```
