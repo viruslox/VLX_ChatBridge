@@ -1,9 +1,34 @@
-chatbridge
-VLX_ChatBridge
-*.exe
+# User configuration
+config/*.settings
+config/*.yaml
+config/*.conf
+!config/*.template
+!config/*.example
 config.yml
-frontend_app/node_modules
+
+# Node / Frontend
+frontend_app/node_modules/
+frontend_app/dist/
+frontend_app/.svelte-kit/
+npm-debug.log*
+
+# Go / Build artifacts
+VLX_ChatBridge
 VLX_ChatBridge_frontend
-frontend_app/dist
-internal/ui/dist
+chatbridge
 godave
+internal/ui/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# IDEs / OS temp files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
