@@ -3,19 +3,22 @@ package main
 import (
 	"crypto/subtle"
 	"encoding/base64"
+	"flag"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 
 	"VLX_ChatBridge/internal/ui"
 )
 
 func main() {
-	cfgPath := "config/frontend.settings"
-	if len(os.Args) > 1 {
-		cfgPath = os.Args[1]
+	cfgFlag := flag.String("config", "", "Path to frontend.settings configuration file")
+	flag.Parse()
+
+	cfgPath := *cfgFlag
+	if cfgPath == "" && flag.NArg() > 0 {
+		cfgPath = flag.Arg(0)
 	}
 	cfg := loadFrontendConfig(cfgPath)
 

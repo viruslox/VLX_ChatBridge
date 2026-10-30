@@ -56,7 +56,7 @@ To change the active layout (e.g., switching from Camera 1 to Camera 2), use the
 ```
 
 ### Enabling / Disabling the Stream Output
-To completely kill or start the broadcast out of VisionBridge (terminates/starts FFmpeg).
+To completely kill or start the broadcast out of VisionBridge (terminates/starts GStreamer).
 
 ```json
 {
@@ -113,7 +113,7 @@ Use `"transport": "webhook"`.
   "method": "POST",
   "url": "http://127.0.0.1:9090/api/v1/relay/cameraman/start",
   "payload": {
-    "device": "V0A1"
+    "device": "V1A1"
   }
 }
 ```

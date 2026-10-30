@@ -73,7 +73,14 @@ func NewClient(cfg *config.Config, hub *websocket.Hub, db *database.DB, commands
 		logger.Warn("YouTube Channel ID is missing in config. Polling will fail.")
 	}
 
-	interval := DefaultPollingInterval
+	interval := cfg.YouTube.PollingInterval
+	if interval <= 0 {
+		interval = DefaultPollingInterval
+	} else if interval < MinPollingInterval {
+		interval = MinPollingInterval
+	} else if interval > MaxPollingInterval {
+		interval = MaxPollingInterval
+	}
 
 	ctx := context.Background()
 	service, err := youtube.NewService(ctx, option.WithAPIKey(cfg.YouTube.APIKey))
@@ -86,6 +93,7 @@ func NewClient(cfg *config.Config, hub *websocket.Hub, db *database.DB, commands
 	limiter := rate.NewLimiter(rate.Every(1*time.Second), 2)
 
 	return &Client{
+		config:          cfg,
 		service:         service,
 		apiKey:          cfg.YouTube.APIKey,
 		channelID:       cfg.YouTube.ChannelID,
@@ -456,7 +464,7 @@ func (c *Client) handleCommand(message string, author *youtube.LiveChatMessageAu
 					
 					req.Header.Set("Content-Type", "application/json")
 
-					resp, err := http.DefaultClient.Do(req)
+					resp, err := twitch.DoWebhookRequest(req)
 					if err != nil {
 						c.logger.Error("Failed to execute multi_action http request", zap.String("command", commandName), zap.Error(err))
 						return

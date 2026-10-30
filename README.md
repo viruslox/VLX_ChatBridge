@@ -318,7 +318,7 @@ Supported targets/actions map to the [Connector contract](docs/ARCHITECTURE.md#1
       "method": "POST",
       "url": "http://127.0.0.1:9090/api/v1/relay/cameraman/start",
       "payload": {
-        "device": "V0A1"
+        "device": "V1A1"
       }
     }
   ]

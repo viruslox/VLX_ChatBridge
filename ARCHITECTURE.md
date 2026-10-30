@@ -80,9 +80,9 @@ The reference deployment is a **single VPS** that co-hosts the FrameFlow Server,
 | VisionBridge | Frontend (Svelte) | `8091` | GUI → control API |
 | VisionBridge | Overlay/WS server | `50051` (WebRTC `50000–50050`) | Chromium DOM sync |
 | VisionBridge | Connector | `/tmp/vlx_control.sock` | IPC **listener** ← ChatBridge |
-| VisionBridge | MediaMTX egress | RTMP `1999` · RTMPS `1936` · SRT `8890` | `streamout` restream |
+| VisionBridge | MediaMTX egress | RTMP `1999` · RTMPS `1937` · SRT `8891` | `streamout` restream |
 
-> ⚠️ **Co-location deconfliction:** on the single-VPS reference topology the FrameFlow ingest MediaMTX and the VisionBridge egress MediaMTX **both** default to RTMPS `1936` and SRT `8890`. Assign distinct ports per instance (e.g. move VisionBridge's MediaMTX RTMPS to `1937` / SRT to `8891`) before running them on the same host.
+> ⚠️ **Co-location deconfliction:** on the single-VPS reference topology the FrameFlow ingest MediaMTX (`1936` / `8890`) and the VisionBridge egress MediaMTX (`1937` / `8891`) use distinct default RTMPS and SRT ports so both instances can run side-by-side on the same host without conflict.
 
 ### 1. Connector (IPC) contract — ChatBridge → VisionBridge
 
@@ -96,8 +96,8 @@ Envelope:
 
 | `action` | `target` | `payload` | Effect on VisionBridge |
 | :--- | :--- | :--- | :--- |
-| `set_input_state` | `stream` | `{enabled}` | Enable/disable output; disabling SIGKILLs FFmpeg. |
-| `set_input_state` | `overlay@layerN` | `{enabled, text=path}` | Toggle Z-layer *N*; set its path when enabling. |
+| `set_input_state` | `stream` | `{enabled}` | Enable/disable output; disabling SIGKILLs GStreamer. |
+| `set_input_state` | `overlay@layerN` | `{enabled, text=path}` | Toggle Z-layer *N*; set its path when enabling (if `text` is non-empty). |
 | `set_input_state` | `volume@layerN` | `{text="0..100"}` | Set Z-layer *N* volume (live, no restart). |
 | `reload` | `chromium` | `{}` | Restart the Chromium DOM engine. |
 | `apply_template` | — | `{text=template_filename}` | Apply a stored Z-layout template. |
@@ -110,7 +110,7 @@ ChatBridge reaches the SBC through the FrameFlow **Server relay**, never the SBC
 POST http://127.0.0.1:9090/api/v1/relay/<path>      →  MLVPN  →  SBC /api/<path>
 ```
 
-Valid `<path>` verbs (Client API): `frameflow/client/{start,stop,status,reset}`, `frameflow/ap/{start,stop,status}`, `frameflow/bonding/{start,stop,status}`, `cameraman/{start,stop,status,list-dev}`, `mediamtx/{start,stop,status}`, `gps/{start,stop,status}`. Example: `POST /api/v1/relay/cameraman/start` with `{"device":"V0A1"}`.
+Valid `<path>` verbs (Client API): `frameflow/client/{start,stop,status,reset}`, `frameflow/ap/{start,stop,status}`, `frameflow/bonding/{start,stop,status}`, `cameraman/{start,stop,status,list-dev}`, `mediamtx/{start,stop,status}`, `gps/{start,stop,status}`. Example: `POST /api/v1/relay/cameraman/start` with `{"device":"V1A1"}` (1-based video/audio index; `V0A1` is audio-only with placeholder video).
 
 ### 3. GPS telemetry contract — FrameFlow → ChatBridge
 

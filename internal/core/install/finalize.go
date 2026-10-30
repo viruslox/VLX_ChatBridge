@@ -91,6 +91,16 @@ func finalizeInstallation(etcDir, baseDir, chosenUser string) {
 		fmt.Println("Ownership changed successfully.")
 	}
 
+	// Best-effort: add chosenUser to the visionbridge group if it exists on the host
+	// so /tmp/vlx_control.sock (0770) is accessible without manual group assignment.
+	if err := exec.Command("getent", "group", "visionbridge").Run(); err == nil {
+		if err := exec.Command("usermod", "-a", "-G", "visionbridge", chosenUser).Run(); err != nil {
+			log.Printf("Warning: Failed to add '%s' to 'visionbridge' group: %v", chosenUser, err)
+		} else {
+			fmt.Printf("Added user '%s' to 'visionbridge' group for IPC socket access.\n", chosenUser)
+		}
+	}
+
 	fmt.Println("\nInstallation complete.")
 }
 

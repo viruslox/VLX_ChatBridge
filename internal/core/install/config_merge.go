@@ -72,9 +72,15 @@ func mergeYamlConfig(existingPath, templatePath string) error {
 		return err
 	}
 
-	if len(existingNode.Content) > 0 && len(templateNode.Content) > 0 {
-		mergeNodes(existingNode.Content[0], templateNode.Content[0])
+	if len(existingNode.Content) == 0 || len(templateNode.Content) == 0 {
+		return nil
 	}
+	// Only merge YAML mapping files (e.g. chatbridge.settings); preserve KEY=VALUE
+	// files (e.g. frontend.settings) untouched on re-install.
+	if existingNode.Content[0].Kind != yaml.MappingNode || templateNode.Content[0].Kind != yaml.MappingNode {
+		return nil
+	}
+	mergeNodes(existingNode.Content[0], templateNode.Content[0])
 
 	outData, err := yaml.Marshal(&existingNode)
 	if err != nil {

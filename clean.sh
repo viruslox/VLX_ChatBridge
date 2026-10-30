@@ -10,6 +10,7 @@ rm -f VLX_ChatBridge VLX_ChatBridge_frontend chatbridge
 rm -rf frontend_app/node_modules/
 rm -rf frontend_app/dist/
 rm -rf frontend_app/.svelte-kit/
+rm -rf node_modules/
 rm -rf internal/ui/dist/
 
 # Clean common IDE / temporary files

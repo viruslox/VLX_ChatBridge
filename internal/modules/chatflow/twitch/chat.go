@@ -3,9 +3,11 @@ package twitch
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -25,6 +27,33 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 )
+
+var loopbackWebhookClient = &http.Client{
+	Timeout: 15 * time.Second,
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	},
+}
+
+var defaultWebhookClient = &http.Client{
+	Timeout: 15 * time.Second,
+}
+
+// DoWebhookRequest executes a multi_action HTTP request, allowing self-signed TLS
+// certificates when targeting loopback or private addresses (such as the local
+// VLX_FrameFlow Server relay on 127.0.0.1:9090 or VPN tunnel 10.x.x.x).
+func DoWebhookRequest(req *http.Request) (*http.Response, error) {
+	if req != nil && req.URL != nil {
+		host := req.URL.Hostname()
+		if host == "localhost" {
+			return loopbackWebhookClient.Do(req)
+		}
+		if ip := net.ParseIP(host); ip != nil && (ip.IsLoopback() || ip.IsPrivate()) {
+			return loopbackWebhookClient.Do(req)
+		}
+	}
+	return defaultWebhookClient.Do(req)
+}
 
 // Permission constants
 const (
@@ -783,7 +812,7 @@ func (c *ChatClient) processMediaCommand(commandName string, message twitch.Priv
 					
 					req.Header.Set("Content-Type", "application/json")
 
-					resp, err := http.DefaultClient.Do(req)
+					resp, err := DoWebhookRequest(req)
 					if err != nil {
 						c.logger.Error("Failed to execute multi_action http request", zap.String("command", commandName), zap.Error(err))
 						return

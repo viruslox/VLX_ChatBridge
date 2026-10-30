@@ -220,7 +220,7 @@ func (b *DiscordBot) emitMultiAction(name string, cmd chattwitch.CommandData) in
 
 				req.Header.Set("Content-Type", "application/json")
 
-				resp, err := http.DefaultClient.Do(req)
+				resp, err := chattwitch.DoWebhookRequest(req)
 				if err != nil {
 					b.zapLogger.Error("Failed to execute multi_action http request", zap.String("command", name), zap.Error(err))
 					return
