@@ -13,7 +13,7 @@ VLX Stream Flow is a self-hosted, end-to-end broadcasting stack composed of thre
 
 | Project | Tier | Responsibility | |
 | :--- | :--- | :--- | :--- |
-| **VLX FrameFlow** | Edge & Transport | Bonded uplink (MLVPN + MPTCP), SBC multi-camera SRT encode, GPS telemetry, VPS relay | |
+| **VLX FrameFlow** | Edge & Transport | Bonded uplink (MLVPN + MPTCP), RK3588 SBC multi-camera SRT encode, GPS telemetry, VPS relay | |
 | **VLX VisionBridge** | Composition | Headless Chromium-DOM scene compositor + GStreamer capture → MediaMTX restream | |
 | **VLX ChatBridge** | Control & Engagement | Twitch/YouTube events, Discord audio gateway, overlays, and the ecosystem command router | **← this repository** |
 
