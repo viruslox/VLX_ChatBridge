@@ -19,5 +19,6 @@ find . -name "*.out" -type f -delete
 find . -name "*.swp" -type f -delete
 find . -name "*~" -type f -delete
 find . -name ".DS_Store" -type f -delete
+find . -name ".goutputstream-*" -type f -delete
 
 echo "Clean complete."

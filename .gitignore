@@ -29,6 +29,7 @@ internal/ui/dist/
 
 # IDEs / OS temp files
 .DS_Store
+.goutputstream-*
 .vscode/
 .idea/
 *.swp
