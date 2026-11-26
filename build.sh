@@ -1,7 +1,12 @@
 #!/bin/bash
 set -e
 
-if [ "$EUID" -eq 0 ] && [ "$CI" != "true" ]; then
+IS_CI=false
+if [ "${CI:-}" = "true" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -d "/__w" ]; then
+    IS_CI=true
+fi
+
+if [ "$EUID" -eq 0 ] && [ "$IS_CI" != "true" ]; then
     echo "Error: Please do not run this build script as root."
     exit 1
 fi
@@ -14,7 +19,8 @@ fi
 TMP_FRONTEND=""
 cleanup_build_temp() {
     [ -n "${TMP_FRONTEND:-}" ] && rm -rf "${TMP_FRONTEND}"
-    if [ "$CI" != "true" ]; then
+    if [ "$IS_CI" != "true" ]; then
+        echo "Cleaning temporary build artifacts (keeping only clean repo + binaries)..."
         rm -rf frontend_app/node_modules/ frontend_app/dist/ frontend_app/.svelte-kit/ node_modules/ internal/ui/dist/
         find . \( -name "*.test" -o -name "*.out" -o -name "*.swp" -o -name "*~" -o -name ".DS_Store" -o -name ".goutputstream-*" \) -type f -delete 2>/dev/null || true
     fi
@@ -26,7 +32,7 @@ go build -o ./VLX_ChatBridge ./cmd/chatbridge
 
 echo "Building frontend assets..."
 if command -v npm >/dev/null 2>&1; then
-  if [ "$CI" = "true" ]; then
+  if [ "$IS_CI" = "true" ]; then
     ( cd frontend_app && npm ci --no-fund --no-audit && npm run build )
     mkdir -p internal/ui/dist
     rm -rf internal/ui/dist/*
@@ -50,5 +56,4 @@ fi
 echo "Building frontend server..."
 go build -o ./VLX_ChatBridge_frontend ./cmd/frontend
 
-echo "Cleaning temporary build artifacts (keeping only clean repo + binaries)..."
 echo "Build complete. Executables: VLX_ChatBridge, VLX_ChatBridge_frontend"
